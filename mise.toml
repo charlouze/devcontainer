@@ -7,3 +7,11 @@ description = "Tests unitaires du module de règles du garde-fou"
 # comme des globs, donc `tests/unit/` matche le répertoire lui-même et node tente
 # de l'exécuter comme un module.
 run = 'node --test "tests/unit/**/*.test.cjs"'
+
+[tasks.build-base]
+description = "Construit l'image agent-base en local"
+run = "docker build -t devcontainer-agent-base:dev images/agent-base"
+
+[tasks.test-smoke]
+description = "Vérifications au niveau container"
+run = "bash tests/smoke.sh devcontainer-agent-base:dev"

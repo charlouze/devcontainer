@@ -1,0 +1,12 @@
+#!/bin/sh
+# Point d'entrée du hook.
+#
+# `env -u` retire les variables par lesquelles Node accepte de précharger du
+# code : sans ça, l'agent pose NODE_OPTIONS=--require=/tmp/neutralise.cjs et le
+# module préchargé s'exécute avant le garde-fou, donc peut le désarmer.
+#
+# L'interprète est un chemin fixe root-only, et non le node de mise : mise est
+# en user-level, donc l'agent pourrait y remplacer l'interpréteur.
+exec env -u NODE_OPTIONS -u NODE_PATH -u NODE_REPL_EXTERNAL_MODULE \
+  /usr/local/lib/claude-guard/node \
+  /usr/local/lib/claude-guard/agent-guard.cjs
