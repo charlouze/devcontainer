@@ -1,0 +1,9 @@
+[tools]
+node = "22"
+
+[tasks.test-unit]
+description = "Tests unitaires du module de règles du garde-fou"
+# Un motif glob, et non le répertoire : `node --test` interprète ses arguments
+# comme des globs, donc `tests/unit/` matche le répertoire lui-même et node tente
+# de l'exécuter comme un module.
+run = 'node --test "tests/unit/**/*.test.cjs"'

@@ -1,0 +1,5 @@
+# Tout le dépôt en LF. Les scripts d'ici sont copiés tels quels dans des images
+# Linux : un CRLF sur un shebang donne « bad interpreter: /usr/bin/env bash^M ».
+* text=auto eol=lf
+*.png binary
+*.jpg binary
