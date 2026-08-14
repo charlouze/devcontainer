@@ -76,6 +76,13 @@ function verifier(texte) {
     return [{ id: 'json', message: `fichier illisible : ${erreur.message}` }];
   }
 
+  // Un JSON valide n'est pas forcément un objet (`null`, un nombre, une
+  // chaîne...) : sans ce garde, `config.image` lèverait sur `null` et le
+  // rôle de `verifier` est de rendre des violations, jamais de jeter.
+  if (config === null || typeof config !== 'object') {
+    return [{ id: 'json', message: `attendu un objet JSON, reçu : ${JSON.stringify(config)}` }];
+  }
+
   if (!IMAGE.test(String(config.image || ''))) {
     refuse('image-tag', `image inattendue : ${config.image}. Attendu un tag de majeure.`);
   }

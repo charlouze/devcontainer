@@ -149,6 +149,12 @@ test('un fichier illisible produit une violation unique', () => {
   assert.deepStrictEqual(ids, ['json']);
 });
 
+test('un JSON valide mais non-objet (null, nombre, chaîne) produit une violation unique, sans jeter', () => {
+  for (const texte of ['null', '42', '"texte"']) {
+    assert.deepStrictEqual(verifier(texte).map((v) => v.id), ['json']);
+  }
+});
+
 test('chaque invariant porte un id unique et un libellé', () => {
   const ids = INVARIANTS.map((i) => i.id);
   assert.strictEqual(new Set(ids).size, ids.length);

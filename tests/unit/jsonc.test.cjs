@@ -33,3 +33,11 @@ test('une virgule traînante est tolérée', () => {
 test('un JSON réellement invalide lève', () => {
   assert.throws(() => parseJsonc('{ "a": }'));
 });
+
+test('une virgule à l\'intérieur d\'une chaîne n\'est pas prise pour une virgule traînante', () => {
+  assert.deepStrictEqual(parseJsonc('{ "a": "x, y", "b": [1, 2,] }'), { a: 'x, y', b: [1, 2] });
+});
+
+test('un commentaire de bloc non terminé lève une erreur JSON.parse propre', () => {
+  assert.throws(() => parseJsonc('{ "a": 1, /* commentaire jamais fermé'), SyntaxError);
+});
