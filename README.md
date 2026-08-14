@@ -137,6 +137,30 @@ accident. Si un container reconstruit repart sur un onboarding vierge, regarder
 `~/.claude/backups/` avant de se reconnecter : Claude Code y tient des copies
 `.claude.json.backup.*`, et y met en quarantaine ce qu'il n'a pas su relire.
 
+## Recevoir une nouvelle version
+
+Le template épingle le tag flottant `:1`, à dessein : l'invariant `image-tag`
+refuse un tag figé, pour qu'un projet suive les correctifs sans qu'on repasse
+sur son `devcontainer.json` à chaque publication.
+
+Le coût est là, et il est silencieux : **Docker ne re-télécharge pas un tag dont
+il détient déjà une copie locale**. Une version publiée n'atteint donc pas un
+poste qui a déjà tiré l'image. Le container se recrée — sur l'ancienne, sans
+qu'aucun message ne le signale. Avant de reconstruire :
+
+```bash
+docker pull ghcr.io/charlouze/devcontainer-web:1
+```
+
+`-web` ou `-agent-base` selon l'image du projet. Puis recréer le container : un
+`pull` sans recréation ne change rien, l'image en cours d'exécution reste celle
+sur laquelle le container a été créé.
+
+C'est aussi ce qui rend le `cp -p` de la section précédente inopérant si on
+l'applique sans rafraîchir : le fichier est bien recopié, mais le container
+repart sur une image qui ne pose pas `CLAUDE_CONFIG_DIR`, et l'état meurt comme
+avant.
+
 ## Publier une version
 
 Avant de taguer, aligner la version du plugin sur celle des images, dans
