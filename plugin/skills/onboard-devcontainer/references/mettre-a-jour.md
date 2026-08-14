@@ -33,11 +33,12 @@ slug, les personnalisations d'IDE.
 
 ## 3. Corriger
 
-Applique les corrections, montre le diff, et laisse à l'humain la décision sur
-tout ce qui touche à une valeur propre au projet. Les écarts sur le
-durcissement, eux, se corrigent : un `devcontainer.json` qui a perdu
-`no-new-privileges` ou `--cap-drop ALL` n'est pas une variante locale, c'est une
-régression.
+Montre le diff des corrections proposées, demande, et n'écris que ce qui a été
+validé : ce mode écrase des clés d'un fichier existant, le gate des règles
+communes de `SKILL.md` s'applique. Vaut pour tout, y compris les écarts de
+durcissement — un `devcontainer.json` qui a perdu `no-new-privileges` ou
+`--cap-drop ALL` n'est pas une variante locale, c'est une régression, mais elle
+se montre et se fait valider comme le reste avant d'être corrigée.
 
 ## 4. Le reste du dépôt
 

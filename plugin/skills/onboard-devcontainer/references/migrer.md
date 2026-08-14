@@ -8,12 +8,20 @@ validé.**
 
 Du `devcontainer.json` existant, ne garde que :
 
-- le nom lisible du projet ;
+- le nom lisible du projet — le champ `name` de l'ancien fichier, débarrassé de
+  son suffixe ` (agent sandbox)` : le template le réinjecte, le garder
+  produirait un doublon. C'est cette source qui prime dans ce mode, et non la
+  règle générale de `SKILL.md` (`package.json`, à défaut le nom du
+  répertoire) : l'ancien fichier est ce que le projet a déjà choisi comme nom
+  lisible, ne le redérive pas d'ailleurs ;
 - les ports (`forwardPorts`, `portsAttributes`) ;
 - les variables d'émulateur et l'identifiant de projet Firebase ;
 - toute personnalisation d'IDE propre au projet.
 
-Tout le reste vient désormais de l'image. En particulier, ne recopie **jamais** :
+Tout le reste vient désormais de l'image — à l'exception d'une variable
+d'environnement propre au projet et sans rapport avec Firebase ou le
+garde-fou (une clé d'API tierce, par exemple) : celle-là n'a pas d'équivalent
+dans l'image, elle se garde. En particulier, ne recopie **jamais** :
 
 - une variable qui prétendait activer le garde-fou (`CDF_SANDBOX` et
   apparentées) — il s'active maintenant sur `/etc/claude-guard/enabled`, root et
@@ -29,7 +37,11 @@ plutôt que de trancher.
 ## 2. Écrire la version courte
 
 Pars de `references/devcontainer.template.json` comme au mode « brancher »,
-avec les valeurs extraites ci-dessus.
+avec les valeurs extraites ci-dessus. Le `devcontainer.json` existant est
+écrasé : montre le diff proposé et attends la validation avant d'écrire,
+exactement comme pour les suppressions de l'étape 4 — le gate des règles
+communes de `SKILL.md` s'applique à tout ce qui écrase du contenu existant, pas
+seulement à ce qui supprime des fichiers.
 
 ## 3. Les volumes changent de nom
 
@@ -41,7 +53,9 @@ C'est la conséquence à annoncer explicitement, parce qu'elle a un effet visibl
   supprimé : c'est à l'humain de décider quand.
 
 Liste les anciens volumes et donne la commande pour les retirer plus tard, sans
-la lancer :
+la lancer. `<ancien-prefixe>` est le préfixe commun aux anciennes sources de
+`mounts` — par exemple `cdf` si l'ancien fichier montait
+`cdf-agent-claude` et `cdf-agent-cache` :
 
 ```bash
 docker volume ls --filter name=<ancien-prefixe>
@@ -79,6 +93,9 @@ Comme au mode « brancher » : ce que faisait l'ancien `post-create.sh` **au tit
 du projet** — et lui seul — devient la tâche `setup` du `mise.toml`. Ce qu'il
 faisait au titre de l'environnement (mise, pnpm, plugins, réglages de l'agent)
 est déjà fait par l'image : ne le recopie pas.
+
+Si le dépôt n'a pas de `package.json`, la présence de `@playwright/test` n'est
+pas vérifiable : n'ajoute pas la ligne Playwright plutôt que de deviner.
 
 ## 6. Terminer
 

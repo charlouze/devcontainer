@@ -64,7 +64,11 @@ tromper de mode y ferait perdre du travail.
   reproductible d'une exécution à l'autre, contrairement à une reformulation
   « telle qu'un humain l'écrirait ».
 - **Rien n'est supprimé ni écrasé sans que le diff ait été montré** et validé.
-  Vaut pour les fichiers comme pour les clés d'un fichier existant.
+  Vaut pour les fichiers comme pour les clés d'un fichier existant. Le gate
+  s'applique à ce qui **écrase ou supprime du contenu existant**, jamais à la
+  création d'un fichier qui n'existait pas : « brancher » et « amorcer »
+  créent, ils n'ont rien à faire valider avant d'écrire ; « migrer » et
+  « mettre à jour » écrasent, ils montrent le diff et attendent.
 - **Le garde-fou ne se négocie pas.** Tu peux écrire un
   `.devcontainer/guard-rules.json`, qui ne fait qu'**ajouter** des interdits au
   socle. Tu ne touches à rien d'autre : le socle vit dans l'image, en root, et

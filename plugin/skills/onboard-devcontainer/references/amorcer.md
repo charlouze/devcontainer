@@ -13,23 +13,14 @@ n'appelle `mise run setup` que si la tâche existe.
 
 C'est le seul mode où tu interroges l'humain. Pose une question à choix
 multiple : « Quels émulateurs Firebase ce projet utilisera-t-il ? », avec **UI,
-Auth et Firestore pré-cochés**.
+Auth et Firestore pré-cochés**. Les ports, les variables d'environnement et la
+règle d'ajout à `forwardPorts`/`portsAttributes`/`containerEnv` sont ceux de la
+table de `references/brancher.md` §1 — ne la redécris pas ici.
 
-| Émulateur | Port | Variable d'environnement |
-|---|---|---|
-| UI | 4000 | — |
-| Hosting | 5000 | — |
-| Functions | 5001 | — |
-| Firestore | 8080 | `FIRESTORE_EMULATOR_HOST` |
-| Pub/Sub | 8085 | `PUBSUB_EMULATOR_HOST` |
-| Realtime Database | 9000 | `FIREBASE_DATABASE_EMULATOR_HOST` |
-| Auth | 9099 | `FIREBASE_AUTH_EMULATOR_HOST` |
-| Storage | 9199 | `FIREBASE_STORAGE_EMULATOR_HOST` |
-
-Chaque case cochée ajoute son port à `forwardPorts`, son libellé à
-`portsAttributes` et sa variable à `containerEnv` — c'est cette dernière qui
-empêche les SDK de viser autre chose que le local. Functions et Hosting n'ont
-pas d'équivalent côté client : seul le port est à ouvrir.
+Si l'humain n'est pas joignable pour répondre, poursuis avec la sélection par
+défaut (UI, Auth, Firestore) et dis-le explicitement dans ce que tu écris :
+une liste de ports incomplète se corrige en relançant le mode, un blocage sans
+issue écrite laisse l'agent coincé sans recours.
 
 Ne pose aucune autre question. Le port de serve est 4200, et l'identifiant de
 projet se déduit (§2).

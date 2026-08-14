@@ -1,7 +1,4 @@
 {
-  // Les marques <…> sont à remplacer. Tout le reste se recopie tel quel : les
-  // commentaires expliquent des réglages dont le symptôme, quand ils manquent,
-  // ne mène pas à la cause.
   "name": "<Nom du projet> (agent sandbox)",
   "image": "ghcr.io/charlouze/devcontainer-web:1",
 
