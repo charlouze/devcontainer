@@ -176,3 +176,9 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
 - **L'accès réseau sortant n'est pas filtré.**
 - **Les règles projet sont supprimables**, puisqu'elles vivent dans le workspace.
   D'où le fait qu'elles ne soient qu'additives.
+- **Le workspace ne vit que dans un volume Docker**, pas sur le disque de
+  l'hôte. Un `docker volume prune`, une remise à zéro de Docker Desktop ou un
+  volume orphelin après un rebuild raté emporte le travail non poussé, et aucune
+  sauvegarde de l'hôte ne le couvre. La fenêtre est plus longue ici qu'ailleurs :
+  le garde-fou bloque `git push`, donc c'est l'humain qui publie, et rien ne le
+  fait à sa place.

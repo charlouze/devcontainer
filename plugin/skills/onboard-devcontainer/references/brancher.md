@@ -115,3 +115,7 @@ Si le dépôt n'a pas de `mise.toml`, crée-le avec la seule section `[tasks.set
 
 Repasse la liste de contrôle finale de `SKILL.md`, montre les deux fichiers
 écrits, et indique la suite : ouvrir le dépôt dans le dev container, puis `yolo`.
+
+Dis-lui aussi que **le workspace vivra dans un volume Docker et pas sur son
+disque** : le garde-fou bloque `git push`, c'est donc lui qui publie, et un
+volume perdu emporte tout ce qui ne l'a pas été.
