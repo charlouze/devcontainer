@@ -200,8 +200,10 @@ de Docker Desktop ou un volume orphelin après un rebuild raté emporte le trava
 non poussé, et aucune sauvegarde de l'hôte ne le couvre. La mise en garde est
 plus aiguë ici que dans le dépôt d'origine : le garde-fou bloque `git push`, donc
 seul l'humain publie, et la fenêtre d'exposition est structurellement plus
-longue. À dire dans le README et dans les deux modes de la skill qui créent un
-container (« brancher », « amorcer »).
+longue. À dire dans le README et dans les trois modes de la skill qui créent ou
+recréent un container (« brancher », « amorcer », « migrer ») — ce dernier
+opère justement la transition d'un workspace posé sur le disque de l'hôte vers
+un volume Docker, donc le risque y est aussi réel que dans les deux autres.
 
 ## 9. Hors périmètre, avec les raisons
 

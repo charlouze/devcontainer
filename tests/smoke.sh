@@ -222,6 +222,11 @@ if [ -n "$WEB_IMAGE" ]; then
   check "le garde-fou survit à la couche web" \
     in_web '/usr/local/lib/claude-guard/node --version'
 
+  # La couche web repasse USER root puis USER dev : on vérifie que la variable
+  # héritée de l'image de base traverse quand même, plutôt que de le supposer.
+  check "CLAUDE_CONFIG_DIR traverse la couche web" \
+    test "$(docker run --rm -u dev "${HARD[@]}" "$WEB_IMAGE" printenv CLAUDE_CONFIG_DIR)" = /home/dev/.claude
+
   # Le cœur du réglage pnpm : le store doit atterrir dans le volume, et surtout
   # PAS dans le projet — c'est le store dans le projet qui fait que l'IDE ne
   # démarre jamais.

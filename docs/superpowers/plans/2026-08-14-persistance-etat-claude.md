@@ -445,6 +445,8 @@ Expected: le workflow en succès, et `ghcr.io/charlouze/devcontainer-agent-base:
 
 5. **Le verrou atterrit-il bien dans le volume ?** C'est ce qui fait que deux containers se coordonnent au lieu de s'ignorer (spec §4), et ça s'observe : pendant qu'une session tourne, `ls -a "$CLAUDE_CONFIG_DIR"` doit montrer un `.claude.json.lock` à côté du fichier. S'il apparaît ailleurs, la variable ne désigne pas ce qu'on croit.
 
+6. **Le garde-fou refuse-t-il toujours `git push` dans le container reconstruit ?** Depuis une session, tenter `git push` et vérifier le code de sortie 2. Ce changement déplace la racine de configuration de Claude Code, et si les managed settings vivaient sous `CLAUDE_CONFIG_DIR` le risque serait réel — mais ils sont à `/etc/claude-code/managed-settings.json`, un chemin système indépendant de la variable, donc le risque est quasi nul. Reste que rien en CI n'exerce le chargement des réglages par Claude Code lui-même : le smoke test invoque directement `/usr/local/lib/claude-guard/run`, pas `claude`. Assurance à bas coût sur la propriété de sécurité centrale du dépôt.
+
 ## Suite
 
 Rien de ce qui a été examiné dans la comparaison avec `holotable` ne reste en attente : les emprunts écartés le sont avec leur raison en §9 de la spec, pour que la question ne se repose pas. Le seul sujet qu'elle laisse ouvert est le filtrage du trafic sortant, que ni ce dépôt ni l'autre ne pratiquent — la §« Ce que le garde-fou ne protège pas » du README l'énonce déjà comme une limite assumée, et un proxy filtrant par SNI en serait la forme, le jour où le besoin se présente.

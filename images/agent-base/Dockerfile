@@ -68,7 +68,8 @@ ENV PATH=/home/dev/.local/bin:/home/dev/.local/share/mise/shims:/usr/local/bin:/
 # enfant. Sans cette variable il reste hors du volume et meurt avec le
 # container : onboarding rejoué, dialogue de confiance reposé, et connexion
 # redemandée malgré un jeton pourtant persisté — l'identité vit dans ce fichier
-# (`oauthAccount`), pas dans les credentials.
+# (`oauthAccount`), pas dans les credentials. Avec la variable, il atterrit dans
+# `/home/dev/.claude/.claude.json`, donc dans le volume.
 #
 # Ici et non dans `containerEnv` du template : un `containerEnv` que l'IDE
 # cesserait d'honorer revient vide, Claude Code retombe sur $HOME, et les

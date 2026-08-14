@@ -117,12 +117,13 @@ cp -p ~/.claude.json ~/.claude/.claude.json
 `-p` n'est pas décoratif : le fichier est en mode 600 et porte l'identité du
 compte.
 
-**Le volume de login est partagé entre projets**, à dessein — et c'est sûr, pour
-une raison qui vaut d'être dite. Deux containers ouverts en même temps écrivent
-le même fichier, exactement comme deux terminaux ouverts sur un poste : c'est le
-cas ordinaire de Claude Code, pas une situation que la conteneurisation invente.
-L'écriture passe par un verrou inter-processus et relit la configuration sur
-disque avant d'écrire.
+**Le volume de login est partagé entre projets**, à dessein — et l'écriture
+concurrente y est sûre, pour une raison qui vaut d'être dite. Deux containers
+ouverts en même temps écrivent le même fichier, exactement comme deux terminaux
+ouverts sur un poste : c'est le cas ordinaire de Claude Code, pas une situation
+que la conteneurisation invente. L'écriture passe par un verrou inter-processus
+et relit la configuration sur disque avant d'écrire, lu dans le binaire plutôt
+qu'éprouvé ici avec deux containers réellement concurrents.
 
 Ce verrou se pose **à côté du fichier qu'il protège**. Avant la `1.2.0`, la
 configuration vivant hors du volume, chaque container avait donc son fichier
@@ -153,7 +154,7 @@ avertissement à chaque fois. Rare en pratique puisque `git push origin main
 est fait en deux temps.
 
 ```bash
-git tag v1.1.0
+git tag v1.2.0
 git push origin main --tags
 ```
 
@@ -182,3 +183,8 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
   sauvegarde de l'hôte ne le couvre. La fenêtre est plus longue ici qu'ailleurs :
   le garde-fou bloque `git push`, donc c'est l'humain qui publie, et rien ne le
   fait à sa place.
+- **Le volume de login est partagé entre projets, donc `.claude.json` aussi.**
+  Le container d'un projet peut lire la configuration MCP d'un autre —
+  `mcpServers` porte couramment des clés d'API tierces dans ses blocs `env` —
+  ainsi que son historique de prompts. Le jeton OAuth était déjà partagé ; c'est
+  une portée de lecture nouvelle, pas un nouveau principe.
