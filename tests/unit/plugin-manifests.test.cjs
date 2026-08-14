@@ -16,7 +16,13 @@ const plugin = () => lire('plugin/.claude-plugin/plugin.json');
 test('la marketplace déclare le plugin, à une source qui existe', () => {
   const entrees = marketplace().plugins;
   assert.strictEqual(entrees.length, 1);
-  const chemin = path.join(racine, '.claude-plugin', entrees[0].source);
+  // `source` est relatif à la racine de la marketplace — le dossier qui
+  // *contient* `.claude-plugin/` — et non à `.claude-plugin/` lui-même où vit
+  // marketplace.json. `claude plugin validate` le confirme explicitement : un
+  // chemin remontant (`../plugin`) y est rejeté avec un message qui dit texto
+  // de le remplacer par `./plugin`. Une résolution relative au fichier aurait
+  // semblé la plus naturelle à écrire ; c'est l'autre qu'implémente le CLI.
+  const chemin = path.join(racine, entrees[0].source);
   assert.ok(
     fs.existsSync(path.join(chemin, '.claude-plugin/plugin.json')),
     `source introuvable : ${entrees[0].source}`
