@@ -6,11 +6,19 @@ déjà dans le dépôt : lis-le, n'interroge pas l'humain.
 ## 1. Lire le dépôt
 
 **`firebase.json`** — si une section `emulators` existe, **elle fait autorité**,
-y compris pour un port déplacé. Chaque émulateur qui y figure est à ouvrir.
-Sinon, prends les clés produits de premier niveau (`firestore`, `functions`,
-`hosting`, `storage`, `database`) et donne à chacune son port par défaut.
-L'émulateur UI n'a pas de clé produit : ouvre son port dès qu'il y a des
-émulateurs.
+y compris pour un port déplacé, et ce indépendamment de ce qui figure par
+ailleurs à la racine du fichier. Chaque émulateur qui y figure est à ouvrir ;
+s'il n'y précise pas de `port`, prends le port par défaut de la table
+ci-dessous. Une clé produit de premier niveau (`hosting`, `firestore`,
+`functions`, …) absente de `emulators` ne démarre pas : c'est de la
+configuration de déploiement, pas un émulateur à ouvrir — ne la complète pas
+avec un port par défaut au prétexte qu'elle existe ailleurs dans le fichier.
+
+Seulement si la section `emulators` est absente du fichier tout entier, prends
+les clés produits de premier niveau (`firestore`, `functions`, `hosting`,
+`storage`, `database`) et donne à chacune son port par défaut. L'émulateur UI
+n'a pas de clé produit : ouvre son port dès qu'il y a des émulateurs, dans les
+deux cas.
 
 | Émulateur | Port par défaut | Variable d'environnement |
 |---|---|---|
@@ -32,8 +40,18 @@ fonctions, seul le port est à ouvrir.
 alimente `GCLOUD_PROJECT` et `GOOGLE_CLOUD_PROJECT`. Absent, cherche-le dans
 `firebase.json` ; toujours absent, prends `demo-<slug>` et dis-le.
 
-**`angular.json`, `nx.json`, `project.json`** — le port de serve se lit dans la
-cible `serve`, clé `options.port`. À défaut, 4200.
+**Le port de serve** — le chemin de clé dépend du format, et les deux peuvent
+coexister le temps d'une migration Angular→Nx :
+
+- `project.json` (Nx moderne) — `targets.serve.options.port` ;
+- `angular.json` (Angular CLI, ou un Nx qui garde encore ce format) —
+  `projects.<app>.architect.serve.options.port`.
+
+`nx.json` est la config du workspace (défauts de targets, task runner) : il ne
+porte normalement pas le port de serve d'un projet précis, ne le lis pas pour
+cette valeur. Si `project.json` et `angular.json` coexistent pour le même
+projet, `project.json` prime — c'est la source que Nx résout en premier une
+fois la migration commencée. À défaut de tout, 4200.
 
 **`package.json`** — la présence de `@playwright/test` décide de la ligne
 Playwright de la tâche `setup`, et de rien d'autre.
@@ -43,7 +61,8 @@ Playwright de la tâche `setup`, et de rien d'autre.
 Pars de `references/devcontainer.template.json`, garde ses commentaires, et
 remplace :
 
-- `<Nom du projet>` — le nom du dépôt tel qu'un humain l'écrit ;
+- `<Nom du projet>` — le nom du projet, comme défini dans les règles communes
+  de `SKILL.md` ;
 - `<projet-firebase>` — l'identifiant trouvé plus haut ;
 - `<slug>` — le slug, dans les deux sources de volumes concernées.
 

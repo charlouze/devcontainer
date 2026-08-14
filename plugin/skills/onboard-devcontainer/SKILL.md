@@ -45,6 +45,11 @@ tromper de mode y ferait perdre du travail.
 - **Le slug** est le nom du répertoire du dépôt, en minuscules, tout caractère
   hors `[a-z0-9]` remplacé par `-`, tirets répétés fusionnés, tirets de début et
   de fin retirés. `Compte-de-Famille` → `compte-de-famille`.
+- **Le nom lisible du projet** — celui qui remplace `<Nom du projet>` dans le
+  template — se reprend tel qu'il apparaît dans le dépôt : le champ `name` de
+  `package.json`, à défaut le nom du répertoire. Aucune retouche de casse ni
+  d'espacement : c'est mécanique, donc reproductible d'une exécution à
+  l'autre, contrairement à une reformulation « telle qu'un humain l'écrirait ».
 - **Rien n'est supprimé ni écrasé sans que le diff ait été montré** et validé.
   Vaut pour les fichiers comme pour les clés d'un fichier existant.
 - **Le garde-fou ne se négocie pas.** Tu peux écrire un
