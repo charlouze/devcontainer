@@ -18,7 +18,62 @@ RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/*
 
-# Le garde-fou, hors de portée de l'agent.
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      build-essential ca-certificates curl git gnupg jq less procps ripgrep \
+      unzip xz-utils \
+ && rm -rf /var/lib/apt/lists/*
+
+# Points de montage des volumes. Créés avec le bon propriétaire ici pour que
+# Docker initialise les volumes vides avec cet ownership plutôt que root.
+RUN mkdir -p /home/${USERNAME}/.claude \
+             /home/${USERNAME}/.cache \
+             /home/${USERNAME}/.history \
+             /home/${USERNAME}/.local/bin \
+ && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
+
+# /etc/profile réécrit PATH de zéro, ce qui efface ce qui vient des directives
+# ENV. Les terminaux de l'IDE étant des shells de login, il faut réinjecter
+# après coup — sinon les outils sont introuvables dans le terminal alors qu'ils
+# marchent dans les scripts. Et un `docker exec bash` n'est PAS un shell de
+# login : il ne lit que /etc/bash.bashrc. D'où le double chargement.
+#
+# /etc/devcontainer est créé avant le COPY, pour la même raison que les
+# répertoires du garde-fou plus bas : laissé à COPY --chmod, BuildKit applique
+# le mode du fichier au parent qu'il crée. Un dossier en 0444 n'est pas
+# traversable, /etc/profile.d/20-history.sh pointe alors sur un fichier
+# illisible et l'historique tombe en silence.
+RUN mkdir -p /etc/devcontainer && chmod 0755 /etc/devcontainer
+COPY --chown=root:root --chmod=0444 etc/history.sh /etc/devcontainer/history.sh
+RUN printf '%s\n' \
+      'export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"' \
+      > /etc/profile.d/10-mise.sh \
+ && chmod 0644 /etc/profile.d/10-mise.sh \
+ && ln -s /etc/devcontainer/history.sh /etc/profile.d/20-history.sh \
+ && printf '%s\n' \
+      '. /etc/profile.d/10-mise.sh' \
+      '. /etc/devcontainer/history.sh' \
+      >> /etc/bash.bashrc
+
+USER ${USERNAME}
+ENV PATH=/home/dev/.local/bin:/home/dev/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+# mise en user-level : l'arbre appartient à `dev`, donc `mise install`
+# fonctionne à chaud et chaque projet applique son mise.toml sans rebuild. Le
+# garde-fou n'en dépend plus (cf. guard/run).
+RUN curl -fsSL https://mise.run | sh
+
+# Installeur natif : l'agent vit dans ~/.local/bin et se met à jour lui-même
+# sans jamais avoir besoin de root.
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+RUN printf '%s\n' "alias yolo='claude --dangerously-skip-permissions'" \
+      >> /home/dev/.bashrc
+
+USER root
+
+# Le garde-fou, hors de portée de l'agent. Dernière couche : une modification du
+# garde-fou ne doit réinvalider ni l'apt ni les installeurs qui précèdent.
 #
 # Les répertoires sont créés explicitement : laissé à COPY --chmod, BuildKit
 # applique le mode du fichier au parent qu'il crée, et un dossier en 0444 n'est
