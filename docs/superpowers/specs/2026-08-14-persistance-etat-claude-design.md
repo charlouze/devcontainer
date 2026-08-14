@@ -56,6 +56,12 @@ répertoire que Claude Code utilise déjà par défaut. Rien d'autre ne bouge : 
 credentials restent exactement où elles sont, avec désormais à côté d'elles
 l'identité qui les rend utilisables.
 
+Le comportement de la variable est **vérifié dans le binaire** (installation
+native de l'hôte, lue le 2026-08-14) et non repris de seconde main : le chemin du
+fichier de configuration global s'y calcule en `join(CLAUDE_CONFIG_DIR ||
+homedir(), '.claude.json')`. La variable désigne bien un répertoire, et le
+fichier y est rangé.
+
 **La variable est posée par `ENV` dans `images/agent-base/Dockerfile`**, pas par
 `containerEnv` dans le template. Trois raisons :
 
@@ -84,35 +90,64 @@ la forme à repli garantit qu'elles ne peuvent pas diverger demain.
 ## 4. Écriture concurrente sur un volume partagé
 
 `agent-claude` est partagé entre projets à dessein — se connecter une fois,
-installer les plugins une fois. Y faire entrer `.claude.json` introduit un cas
-nouveau : deux containers ouverts en même temps écrivent le même fichier, et
-Claude Code le réécrit en entier. Le dernier écrivain gagne.
+installer les plugins une fois. Y faire entrer `.claude.json` soulève une
+question : deux containers ouverts en même temps écrivent le même fichier, et ce
+dépôt suppose l'usage simultané. C'est un mode de travail courant ici, pas un
+accident.
 
-Or ce dépôt suppose l'usage simultané : c'est un mode de travail courant, pas un
-accident. Le cas doit donc être instruit avant d'être accepté — ce qui suit est
-cette instruction, et sa conclusion est qu'aucun code ne le corrige, seulement
-une garantie comprise et écrite.
+**La question se répond d'elle-même par sa généralité.** Deux containers
+partageant ce volume, c'est exactement deux terminaux ouverts sur un poste : même
+fichier unique, deux processus, aucune coordination supplémentaire d'un côté ni
+de l'autre. Ce n'est donc pas un cas que la conteneurisation invente — c'est le
+cas ordinaire de n'importe quel utilisateur de Claude Code, et il serait
+notoirement cassé s'il l'était.
 
-En séparant les clés, la conclusion est moins sombre que la prémisse :
+Lecture du binaire (installation native de l'hôte, 2026-08-14), qui le confirme
+et dit comment :
 
-- `hasCompletedOnboarding` et `oauthAccount` sont **globales, et les deux
-  containers y écrivent la même valeur**. Elles convergent. Ce sont exactement
-  les deux clés dont la perte fait mal aujourd'hui.
-- Les clés sous `projects[<chemin>]` peuvent régresser vers l'instantané périmé
-  de l'autre container : le dialogue de confiance d'un projet réapparaît une
-  fois. En mode YOLO, `allowedTools` n'a de toute façon pas d'effet.
+- L'écriture passe par `saveConfigWithLock`, un **verrou inter-processus**. La
+  contention est un cas prévu et instrumenté, jusque dans le message d'attente :
+  « Lock acquisition took longer than expected — another Claude instance may be
+  running », avec une métrique dédiée.
+- **La configuration est relue depuis le disque sous le verrou**, et la
+  modification s'applique à cette relecture. Un container n'écrit donc pas la
+  vision du monde qu'il avait à son démarrage.
+- Un garde refuse explicitement une écriture dont la relecture perdrait
+  l'authentification détenue en cache, avec son numéro d'issue amont (GH #3117),
+  et une métrique compare mtime et taille entre lecture et écriture.
+- Le verrou est `proper-lockfile`, dont la détection de péremption est fondée sur
+  la **mtime**, jamais sur les PID. Rien ne dépend donc des namespaces de
+  processus : deux containers ont des espaces de PID distincts, mais partagent le
+  système de fichiers et l'horloge du noyau hôte, qui est tout ce dont ce verrou
+  a besoin.
 
-**Le partage reste donc strictement meilleur que l'état actuel**, où ces clés
-sont perdues à 100 % à chaque recréation. Le risque résiduel dégrade le
-correctif ; il n'ajoute aucun dommage qui n'existe déjà.
+### Ce que le correctif fait en plus, et qui n'était pas prévu
 
-Ce raisonnement repose sur une hypothèse non vérifiée dans ce dépôt : que Claude
-Code réécrit ce fichier intégralement depuis son instantané en mémoire, plutôt
-que d'y fusionner les clés relues sur disque. Elle est déduite de son mécanisme
-de quarantaine et de `backups/`, pas mesurée. Le plan d'implémentation la met à
-l'épreuve avant que le README n'affirme quoi que ce soit à ce sujet ; à défaut de
-sonde concluante, la documentation reste au fait observable — le partage ne perd
-que du suivi par projet.
+`proper-lockfile` pose son verrou **à côté du fichier qu'il protège**
+(`.claude.json.lock`). Aujourd'hui, la configuration vivant dans `$HOME` hors du
+volume, chaque container a donc son propre fichier *et son propre verrou* : deux
+instances qui ne se voient pas, chacune se croyant seule. Personne ne l'a jamais
+remarqué parce qu'il n'y avait rien à remarquer — l'état mourait de toute façon à
+la recréation.
+
+Poser `CLAUDE_CONFIG_DIR` dans le volume n'y met donc pas seulement le fichier :
+**ça y met le verrou**. Le partage n'est pas acceptable *malgré* la concurrence,
+il est correct *parce que* la concurrence devient visible aux deux instances.
+
+Cela recoupe un autre choix du dépôt : une péremption fondée sur la mtime suppose
+un système de fichiers qui l'honore. Un volume Docker natif est de l'ext4, donc
+oui. Un bind mount Windows — que le design écarte déjà pour des raisons de
+performance — serait le terrain où ce serait douteux.
+
+### Ce qui reste non vérifié
+
+La sémantique exacte de fusion à l'écriture : le code construit l'objet écrit par
+comparaison avec un état de référence dont la définition n'a pas été lue.
+L'existence même de la métrique d'écriture périmée indique que le cas est mesuré
+en amont, donc qu'il n'est pas tenu pour impossible. Et la lecture porte sur la
+version installée sur l'hôte, alors que l'image installe `latest` — un
+durcissement de cette nature ne régresse pas facilement, mais ce n'est pas une
+garantie contractuelle.
 
 ## 5. Ce que le correctif fait persister en plus, et qu'on ne voulait pas
 
@@ -147,7 +182,7 @@ avant la destruction du container reviendrait à la faire au mauvais moment.
 | Elle vaut la cible du montage du template | Test unitaire : `ENV` du Dockerfile ↔ clé de `devcontainer-invariants.cjs` | Attrape la dérive entre image et template |
 | Un fichier écrit là survit à la recréation | `smoke.sh`, sur le patron du test d'historique existant | Vérifie la plomberie, **pas** le comportement de Claude Code |
 | `claude-settings.sh` suit la variable | `smoke.sh`, avec une valeur détournée | Interdit le retour d'un chemin en dur |
-| Claude Code honore réellement la variable | Vérification manuelle après publication | Demande une session authentifiée : hors CI |
+| Claude Code honore réellement la variable | Lecture du binaire (§3), puis vérification manuelle après publication | La lecture prouve le calcul du chemin ; l'aller-retour complet demande une session authentifiée, donc hors CI |
 
 La troisième ligne du tableau est le seul endroit où le smoke test pourrait
 donner une fausse assurance : écrire un fichier témoin dans le volume prouve que
@@ -195,8 +230,9 @@ alignés sur cette version, comme le vérifie déjà
 
 - Le correctif ne s'arme qu'à la **recréation** du container, pas dans celui en
   cours : un `ENV` d'image est fixé à la construction.
-- Deux containers simultanés peuvent encore faire réapparaître un dialogue de
-  confiance. C'est le prix du volume de login partagé, et il est plus bas que
-  celui qu'on paie aujourd'hui.
+- La coordination entre containers simultanés repose sur `proper-lockfile` et sur
+  une relecture sous verrou, l'un et l'autre lus dans le binaire mais pas
+  éprouvés ici en conditions réelles. La sémantique fine de fusion reste hors de
+  ce qui a été vérifié (§4).
 - Une configuration corrompue survit désormais aux rebuilds. La récupération est
   documentée, elle n'est pas automatique.
