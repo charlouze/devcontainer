@@ -115,6 +115,37 @@ docker volume rm "$HIST_VOL" >/dev/null 2>&1 || true
 check  "HISTFILE pointe vers le volume dans un shell non-login" \
   in_base_i '[ "$HISTFILE" = /home/dev/.history/bash_history ]'
 
+section "État de Claude Code"
+
+# Sans shell du tout, donc sans /etc/profile ni fichier rc : c'est ce qu'un ENV
+# d'image garantit et qu'un containerEnv ne garantit pas. Le lifecycle script,
+# le terminal de l'IDE et un `docker exec` la voient tous les trois.
+check "CLAUDE_CONFIG_DIR est exportée à tout processus" \
+  test "$(docker run --rm -u dev "${HARD[@]}" "$BASE_IMAGE" printenv CLAUDE_CONFIG_DIR)" = /home/dev/.claude
+
+# /etc/profile réécrit PATH de zéro — d'où le rattrapage documenté dans le
+# Dockerfile. On vérifie que la variable, elle, traverse bien un shell de login.
+check "CLAUDE_CONFIG_DIR survit au shell de login" \
+  test "$(in_base 'printf %s "$CLAUDE_CONFIG_DIR"')" = /home/dev/.claude
+
+# Le témoin est écrit À TRAVERS la variable, jamais à un chemin en dur : le test
+# échoue donc dès que la variable et le montage cessent de désigner le même
+# endroit. Ce qu'il prouve est la plomberie — que Claude Code écrive réellement
+# là relève d'une vérification manuelle, elle demande une session authentifiée.
+CFG_VOL="smoke-claude-$$"
+check "un fichier écrit dans CLAUDE_CONFIG_DIR survit à la recréation" bash -c '
+  docker run --rm -u dev -v '"$CFG_VOL"':/home/dev/.claude '"$BASE_IMAGE"' \
+    bash -lc "echo temoin > \$CLAUDE_CONFIG_DIR/.claude.json" &&
+  docker run --rm -u dev -v '"$CFG_VOL"':/home/dev/.claude '"$BASE_IMAGE"' \
+    bash -lc "grep -q temoin \$CLAUDE_CONFIG_DIR/.claude.json"'
+docker volume rm "$CFG_VOL" >/dev/null 2>&1 || true
+
+# Valeur détournée, et pas la valeur par défaut : avec celle-ci, un script resté
+# en dur sur $HOME/.claude passerait le test sans suivre la variable.
+check "claude-settings.sh suit CLAUDE_CONFIG_DIR" in_base '
+  CLAUDE_CONFIG_DIR=/tmp/cfg /usr/local/share/devcontainer/lib/claude-settings.sh
+  [ "$(jq -r .skipDangerousModePermissionPrompt /tmp/cfg/settings.json)" = true ]'
+
 section "Provisionnement"
 
 # `claude` est bouchonné : on vérifie les commandes émises, pas une vraie

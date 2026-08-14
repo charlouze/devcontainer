@@ -63,6 +63,22 @@ RUN printf '%s\n' \
 USER ${USERNAME}
 ENV PATH=/home/dev/.local/bin:/home/dev/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
+# Claude Code range son état dans le répertoire `.claude`, mais son fichier de
+# configuration principal est `~/.claude.json` — un FRÈRE du répertoire, pas un
+# enfant. Sans cette variable il reste hors du volume et meurt avec le
+# container : onboarding rejoué, dialogue de confiance reposé, et connexion
+# redemandée malgré un jeton pourtant persisté — l'identité vit dans ce fichier
+# (`oauthAccount`), pas dans les credentials.
+#
+# Ici et non dans `containerEnv` du template : un `containerEnv` que l'IDE
+# cesserait d'honorer revient vide, Claude Code retombe sur $HOME, et les
+# réglages se remettent à mourir à chaque rebuild sans erreur nulle part. Un ENV
+# d'image ne peut pas être ignoré, et il est atteignable par le smoke test.
+#
+# La valeur doit rester identique à la cible du montage `agent-claude` du
+# template ; tests/unit/image-config-dir.test.cjs tient les deux en accord.
+ENV CLAUDE_CONFIG_DIR=/home/dev/.claude
+
 # mise en user-level : l'arbre appartient à `dev`, donc `mise install`
 # fonctionne à chaud et chaque projet applique son mise.toml sans rebuild. Le
 # garde-fou n'en dépend plus (cf. guard/run).
