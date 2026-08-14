@@ -61,6 +61,11 @@ ajoutera la tâche `setup`.
 Ne génère pas l'application toi-même : `nx create-workspace` et `firebase init`
 ont leurs propres générateurs, et ils sont à lancer dans le container, pas ici.
 
+Dis-lui enfin que **le projet qui va naître dans ce container vivra dans un
+volume Docker et pas sur son disque**. C'est plus aigu ici que dans les autres
+modes : le dépôt est vide, donc il n'existe aucune copie ailleurs tant que rien
+n'a été poussé — et le garde-fou bloque `git push`.
+
 ## 5. Répertoire non vide, sans manifeste Node ni Firebase reconnu
 
 Remplace les sections 1 à 4 pour ce cas : la question sur les émulateurs,

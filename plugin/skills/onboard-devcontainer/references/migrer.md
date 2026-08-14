@@ -102,3 +102,9 @@ pas vérifiable : n'ajoute pas la ligne Playwright plutôt que de deviner.
 Repasse la liste de contrôle finale de `SKILL.md`. Annonce qu'aucun changement
 fonctionnel n'est attendu côté développeur — mêmes ports, mêmes tâches, mêmes
 garde-fous — et que la première ouverture reconstruira le container.
+
+Dis-lui aussi que **le workspace, à partir de cette reconstruction, vivra dans
+un volume Docker et pas sur le disque de l'hôte** — c'est justement le
+changement que l'étape 3 vient d'annoncer sur le nom des volumes. Le garde-fou
+bloque `git push`, donc c'est l'humain qui publie, et un volume perdu emporte
+tout ce qui ne l'a pas été.

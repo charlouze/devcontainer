@@ -86,6 +86,57 @@ invalide, plus de 100 règles, ou regex non compilable → avertissement sur std
 et on continue avec le socle. Ni fail-open silencieux, ni blocage total sur une
 erreur de configuration.
 
+## Ce qui persiste d'une recréation à l'autre
+
+Le volume `agent-claude` est monté sur `/home/dev/.claude` et porte la connexion,
+les réglages et les plugins. Mais le fichier de configuration principal de Claude
+Code n'est pas dans ce répertoire : c'est `~/.claude.json`, un **frère** du
+répertoire et non un enfant. Il portait donc l'onboarding, l'identité du compte
+et la confiance du projet dans la couche inscriptible du container, où ils
+mouraient à chaque recréation.
+
+Le contre-intuitif : **persister le jeton ne suffisait pas**. `.credentials.json`
+est bien dans le volume et survit vraiment, mais l'identité vit dans
+`oauthAccount`, côté `.claude.json`. Le container revenait donc jeton valide et
+identité inconnue — et le flux de première connexion rejouait malgré le jeton.
+
+Depuis la `1.2.0`, l'image pose `CLAUDE_CONFIG_DIR=/home/dev/.claude` : le
+fichier atterrit dans le volume, à côté des credentials qu'il rend utilisables.
+La variable est dans l'**image** et non dans le `containerEnv` du projet, parce
+qu'un `containerEnv` ignoré par l'IDE reviendrait vide et ferait retomber Claude
+Code sur `$HOME` sans qu'aucune erreur ne le signale.
+
+**Le premier rebuild après la montée en `1.2.0` rejoue l'onboarding une dernière
+fois**, l'ancien fichier ayant disparu avec l'ancien container. Pour l'éviter,
+depuis le container encore en cours et *avant* de reconstruire :
+
+```bash
+cp -p ~/.claude.json ~/.claude/.claude.json
+```
+
+`-p` n'est pas décoratif : le fichier est en mode 600 et porte l'identité du
+compte.
+
+**Le volume de login est partagé entre projets**, à dessein — et l'écriture
+concurrente y est sûre, pour une raison qui vaut d'être dite. Deux containers
+ouverts en même temps écrivent le même fichier, exactement comme deux terminaux
+ouverts sur un poste : c'est le cas ordinaire de Claude Code, pas une situation
+que la conteneurisation invente. L'écriture passe par un verrou inter-processus
+et relit la configuration sur disque avant d'écrire, lu dans le binaire plutôt
+qu'éprouvé ici avec deux containers réellement concurrents.
+
+Ce verrou se pose **à côté du fichier qu'il protège**. Avant la `1.2.0`, la
+configuration vivant hors du volume, chaque container avait donc son fichier
+*et son verrou* : deux instances qui ne se voyaient pas. En déplaçant le fichier
+dans le volume, on y déplace le verrou — le partage n'est pas toléré malgré la
+concurrence, il est correct parce que la concurrence devient visible.
+
+**Une configuration corrompue survit désormais aussi.** Ce fichier se corrompt en
+pratique ; jusqu'ici la couche inscriptible l'effaçait au rebuild suivant, par
+accident. Si un container reconstruit repart sur un onboarding vierge, regarder
+`~/.claude/backups/` avant de se reconnecter : Claude Code y tient des copies
+`.claude.json.backup.*`, et y met en quarantaine ce qu'il n'a pas su relire.
+
 ## Publier une version
 
 Avant de taguer, aligner la version du plugin sur celle des images, dans
@@ -103,7 +154,7 @@ avertissement à chaque fois. Rare en pratique puisque `git push origin main
 est fait en deux temps.
 
 ```bash
-git tag v1.1.0
+git tag v1.2.0
 git push origin main --tags
 ```
 
@@ -126,3 +177,14 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
 - **L'accès réseau sortant n'est pas filtré.**
 - **Les règles projet sont supprimables**, puisqu'elles vivent dans le workspace.
   D'où le fait qu'elles ne soient qu'additives.
+- **Le workspace ne vit que dans un volume Docker**, pas sur le disque de
+  l'hôte. Un `docker volume prune`, une remise à zéro de Docker Desktop ou un
+  volume orphelin après un rebuild raté emporte le travail non poussé, et aucune
+  sauvegarde de l'hôte ne le couvre. La fenêtre est plus longue ici qu'ailleurs :
+  le garde-fou bloque `git push`, donc c'est l'humain qui publie, et rien ne le
+  fait à sa place.
+- **Le volume de login est partagé entre projets, donc `.claude.json` aussi.**
+  Le container d'un projet peut lire la configuration MCP d'un autre —
+  `mcpServers` porte couramment des clés d'API tierces dans ses blocs `env` —
+  ainsi que son historique de prompts. Le jeton OAuth était déjà partagé ; c'est
+  une portée de lecture nouvelle, pas un nouveau principe.

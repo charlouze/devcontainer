@@ -4,7 +4,7 @@
 
 **Goal:** Faire survivre l'état de Claude Code — onboarding, identité de compte, confiance du projet — à la recréation d'un container, en posant `CLAUDE_CONFIG_DIR` dans l'image de base plutôt que dans le template.
 
-**Architecture:** Une seule ligne `ENV` porte le correctif ; tout le reste du plan sert à empêcher qu'elle dérive ou qu'elle mente. Un test unitaire tient la valeur en accord avec la cible du montage `agent-claude` qu'épingle déjà le module d'invariants, le smoke test vérifie qu'elle est exportée à tout processus — y compris sans shell, ce qui est exactement ce qu'un `containerEnv` ne garantit pas — et une sonde manuelle tranche, avant que le README n'affirme quoi que ce soit, ce que l'écriture concurrente coûte réellement sur un volume de login partagé.
+**Architecture:** Une seule ligne `ENV` porte le correctif ; tout le reste du plan sert à empêcher qu'elle dérive ou qu'elle mente. Un test unitaire tient la valeur en accord avec la cible du montage `agent-claude` qu'épingle déjà le module d'invariants, et le smoke test vérifie qu'elle est exportée à tout processus — y compris sans shell, ce qui est exactement ce qu'un `containerEnv` ne garantit pas. Le partage du volume de login entre projets est sûr, et pour une raison qui rend le correctif meilleur qu'il n'en a l'air : le verrou de configuration se pose à côté du fichier qu'il protège, donc le déplacer dans le volume y déplace aussi le verrou, et deux containers cessent de s'ignorer (spec §4).
 
 **Tech Stack:** Dockerfile, bash, Node.js `node:test`, jq, Docker, mise, GitHub Actions.
 
@@ -38,95 +38,13 @@
 | `plugin/skills/onboard-devcontainer/references/amorcer.md` | Idem | Modifié |
 | `plugin/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` | Version `1.2.0` | Modifiés |
 
-**Note de décomposition — pourquoi la sonde est une tâche et non une note.** La Task 1 ne produit aucun code. Elle existe parce que la §4 de la spec repose sur une hypothèse non mesurée (Claude Code réécrit-il `.claude.json` intégralement, ou fusionne-t-il avec le disque ?), et que la réponse change ce que la Task 3 écrit dans le README. Documenter une garantie qu'on n'a pas vérifiée est précisément le genre de fausse assurance que ce dépôt refuse ailleurs — le garde-fou a sa section « ce qu'il ne protège pas » pour la même raison.
+**Note de décomposition — une sonde a été retirée du plan.** Une première version portait en Task 1 une sonde manuelle destinée à mesurer ce que coûte l'écriture concurrente sur le volume de login partagé. Elle est sans objet : la lecture du binaire de Claude Code a répondu mieux qu'une expérience en boîte noire ne l'aurait fait — verrou inter-processus, relecture sous verrou, péremption par mtime et non par PID (spec §4). Ce que la sonde aurait mesuré indirectement est désormais lu directement, et ce qui reste inconnu (la sémantique fine de fusion) ne se serait pas laissé mesurer par elle.
 
-**Ordre d'exécution.** Task 1 avant Task 3. La Task 2 est indépendante des deux et peut passer en premier si la sonde demande d'attendre une occasion.
-
----
-
-## Task 1: Sonde — que coûte réellement l'écriture concurrente
-
-Aucun livrable de code. Le livrable est une réponse, consignée dans ce fichier, qui détermine la formulation de la Task 3.
-
-**Files:**
-- Modify: `docs/superpowers/plans/2026-08-14-persistance-etat-claude.md` (consigner le verdict dans cette tâche)
-
-**Interfaces:**
-- Consomme : rien
-- Produit : le verdict `réécriture intégrale` ou `fusion`, que la Task 3 Step 2 cite
-
-**Prérequis :** un container existant, avec une session Claude Code authentifiée. N'importe quel projet déjà branché convient — la sonde porte sur le comportement de Claude Code, pas sur l'image nouvelle.
-
-- [ ] **Step 1: Sauvegarder la configuration avant de la manipuler**
-
-Le fichier porte l'identité du compte et il est en mode 600 ; `-p` conserve les deux.
-
-```bash
-cp -p ~/.claude.json ~/.claude.json.sonde-backup
-ls -l ~/.claude.json.sonde-backup
-```
-
-Expected: un fichier en `-rw-------`, taille non nulle.
-
-- [ ] **Step 2: Ouvrir une session Claude Code et la laisser en cours**
-
-Dans un premier terminal :
-
-```bash
-claude
-```
-
-Laisser la session ouverte : c'est elle qui tient l'instantané en mémoire dont on veut savoir s'il écrase le disque. Ne rien lui demander, aucun jeton n'a besoin d'être dépensé.
-
-- [ ] **Step 3: Injecter un marqueur depuis un second terminal**
-
-Dans un second terminal du **même** container, pendant que la session tourne :
-
-```bash
-jq '.sondeMarqueur = "temoin"' ~/.claude.json > /tmp/sonde.json && mv /tmp/sonde.json ~/.claude.json
-grep -c sondeMarqueur ~/.claude.json
-```
-
-Expected: `1`. Le marqueur joue le rôle de ce qu'un second container aurait écrit.
-
-- [ ] **Step 4: Provoquer une écriture par la session, puis la terminer**
-
-Dans le premier terminal, quitter la session (`/exit`). La fin de session écrit l'historique de prompts du projet, donc le fichier.
-
-- [ ] **Step 5: Lire le verdict**
-
-```bash
-grep -c sondeMarqueur ~/.claude.json
-```
-
-- `0` → **réécriture intégrale** depuis l'instantané en mémoire. L'hypothèse de la spec §4 est confirmée : un second container peut faire régresser les clés `projects[<chemin>]` de l'autre. Les clés globales convergent quand même, les deux containers y écrivant la même valeur.
-- `1` → **fusion** avec l'état sur disque. La concurrence est bénigne, et la §4 de la spec est trop prudente : la Task 3 le dit alors sans réserve.
-
-- [ ] **Step 6: Restaurer**
-
-```bash
-cp -p ~/.claude.json.sonde-backup ~/.claude.json
-rm ~/.claude.json.sonde-backup
-```
-
-Attention : cette restauration ramène l'état d'avant la sonde et perd donc ce que la session du Step 2 a écrit entre-temps. C'est sans conséquence ici (aucun prompt n'a été soumis) ; ne pas la rejouer telle quelle après une vraie session de travail.
-
-- [ ] **Step 7: Consigner le verdict dans ce fichier**
-
-Remplacer la ligne ci-dessous par le résultat, date comprise, puis committer.
-
-> **Verdict de la sonde :** _(à remplir — `réécriture intégrale` ou `fusion`, et la date)_
-
-```bash
-git add docs/superpowers/plans/2026-08-14-persistance-etat-claude.md
-git commit -m "Verdict de la sonde d'écriture concurrente sur .claude.json"
-```
-
-**Si la sonde ne peut pas être menée** (pas de container authentifié sous la main), ne pas bloquer le plan : la Task 3 s'en tient alors à ce qui est observable sans elle — les clés globales convergent, le suivi par projet peut régresser — et la formulation reste au conditionnel. Le noter ici plutôt que de laisser croire que la question a été tranchée.
+**Ordre d'exécution.** Les quatre tâches sont séquentielles, la Task 4 publiant ce que les trois autres produisent. Les Tasks 2 et 3 ne touchent que de la documentation et peuvent être menées dans l'ordre inverse sans conséquence.
 
 ---
 
-## Task 2: La variable dans l'image, et ce qui l'empêche de dériver
+## Task 1: La variable dans l'image, et ce qui l'empêche de dériver
 
 Livrable : l'image exporte `CLAUDE_CONFIG_DIR`, la valeur ne peut plus diverger de celle du template sans faire échouer un test, et `claude-settings.sh` suit la variable au lieu de recalculer le chemin.
 
@@ -301,15 +219,15 @@ git commit -m "L'état de Claude Code persiste : CLAUDE_CONFIG_DIR posée dans l
 
 ---
 
-## Task 3: Documenter ce qui persiste, et ce que le partage coûte
+## Task 2: Documenter ce qui persiste, et pourquoi le partage est sûr
 
-Livrable : une section de README qui explique le défaut corrigé, ce que le premier rebuild va faire, et ce que le volume de login partagé implique quand deux containers tournent.
+Livrable : une section de README qui explique le défaut corrigé, ce que le premier rebuild va faire, et pourquoi le volume de login partagé est sûr quand deux containers tournent.
 
 **Files:**
 - Modify: `README.md` (nouvelle section, après « Règles de garde-fou propres à un projet »)
 
 **Interfaces:**
-- Consomme : le verdict de la Task 1 Step 7
+- Consomme : rien
 - Produit : rien que d'autres tâches consomment
 
 - [ ] **Step 1: Écrire la section**
@@ -348,12 +266,18 @@ cp -p ~/.claude.json ~/.claude/.claude.json
 `-p` n'est pas décoratif : le fichier est en mode 600 et porte l'identité du
 compte.
 
-**Le volume de login est partagé entre projets**, à dessein. Deux containers
-ouverts en même temps écrivent donc le même fichier. Les clés qui comptent —
-`hasCompletedOnboarding`, `oauthAccount` — sont globales et reçoivent la même
-valeur des deux côtés : elles convergent. Ce qui peut régresser est le suivi par
-projet, et le symptôme est un dialogue de confiance qui réapparaît une fois. En
-mode YOLO, `allowedTools` n'a de toute façon aucun effet.
+**Le volume de login est partagé entre projets**, à dessein — et c'est sûr, pour
+une raison qui vaut d'être dite. Deux containers ouverts en même temps écrivent
+le même fichier, exactement comme deux terminaux ouverts sur un poste : c'est le
+cas ordinaire de Claude Code, pas une situation que la conteneurisation invente.
+L'écriture passe par un verrou inter-processus et relit la configuration sur
+disque avant d'écrire.
+
+Ce verrou se pose **à côté du fichier qu'il protège**. Avant la `1.2.0`, la
+configuration vivant hors du volume, chaque container avait donc son fichier
+*et son verrou* : deux instances qui ne se voyaient pas. En déplaçant le fichier
+dans le volume, on y déplace le verrou — le partage n'est pas toléré malgré la
+concurrence, il est correct parce que la concurrence devient visible.
 
 **Une configuration corrompue survit désormais aussi.** Ce fichier se corrompt en
 pratique ; jusqu'ici la couche inscriptible l'effaçait au rebuild suivant, par
@@ -362,20 +286,12 @@ accident. Si un container reconstruit repart sur un onboarding vierge, regarder
 `.claude.json.backup.*`, et y met en quarantaine ce qu'il n'a pas su relire.
 ````
 
-- [ ] **Step 2: Accorder la formulation au verdict de la sonde**
-
-Reprendre le paragraphe « Le volume de login est partagé entre projets » :
-
-- verdict **réécriture intégrale** → le texte ci-dessus convient tel quel ;
-- verdict **fusion** → remplacer les deux dernières phrases par : « Claude Code fusionne ses écritures avec l'état trouvé sur disque (vérifié le _(date)_), la concurrence est donc sans effet observable. » ;
-- **sonde non menée** → ajouter en fin de paragraphe : « Ce partage n'a pas été éprouvé avec deux containers actifs simultanément. »
-
-- [ ] **Step 3: Vérifier que rien d'autre du README ne contredit la nouvelle section**
+- [ ] **Step 2: Vérifier que rien d'autre du README ne contredit la nouvelle section**
 
 Run: `grep -n "credentials\|persist\|volume" README.md`
 Expected: la section « Ce que le garde-fou ne protège pas » mentionne toujours que le jeton d'authentification est lisible depuis la session — c'est cohérent, et à laisser tel quel. Aucune autre affirmation sur ce qui survit à un rebuild ne doit subsister ailleurs.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add README.md
@@ -384,7 +300,7 @@ git commit -m "Documente ce qui persiste d'une recréation à l'autre"
 
 ---
 
-## Task 4: L'avertissement qui manquait — le volume est la seule copie
+## Task 3: L'avertissement qui manquait — le volume est la seule copie
 
 Livrable : le README et les deux modes de la skill qui créent un container disent que le travail non poussé ne vit qu'à un seul endroit.
 
@@ -451,7 +367,7 @@ git commit -m "Avertit que le workspace ne vit que dans un volume Docker"
 
 ---
 
-## Task 5: Publier la `1.2.0`
+## Task 4: Publier la `1.2.0`
 
 Livrable : les manifestes portent la version, la CI reconstruit, rejoue les tests contre les images construites et publie.
 
@@ -507,7 +423,7 @@ Expected: le workflow en succès, et `ghcr.io/charlouze/devcontainer-agent-base:
 
 ## Points à vérifier pendant l'exécution
 
-1. **Claude Code honore-t-il réellement `CLAUDE_CONFIG_DIR` ?** Le smoke test prouve la plomberie — variable exportée, volume monté, fichier persistant — pas le comportement de l'agent. La preuve demande une session authentifiée, donc hors CI. Après le premier rebuild sur la `1.2.0`, dans le container :
+1. **Claude Code honore-t-il réellement `CLAUDE_CONFIG_DIR` ?** Le calcul du chemin a été lu dans le binaire (spec §3), et le smoke test prouve la plomberie — variable exportée, volume monté, fichier persistant. Ce qu'aucun des deux ne prouve est l'aller-retour complet, qui demande une session authentifiée, donc hors CI. Après le premier rebuild sur la `1.2.0`, dans le container :
 
    ```bash
    echo "$CLAUDE_CONFIG_DIR"          # /home/dev/.claude
@@ -526,6 +442,10 @@ Expected: le workflow en succès, et `ghcr.io/charlouze/devcontainer-agent-base:
    ```bash
    docker run --rm -u dev devcontainer-web:dev printenv CLAUDE_CONFIG_DIR
    ```
+
+5. **Le verrou atterrit-il bien dans le volume ?** C'est ce qui fait que deux containers se coordonnent au lieu de s'ignorer (spec §4), et ça s'observe : pendant qu'une session tourne, `ls -a "$CLAUDE_CONFIG_DIR"` doit montrer un `.claude.json.lock` à côté du fichier. S'il apparaît ailleurs, la variable ne désigne pas ce qu'on croit.
+
+6. **Le garde-fou refuse-t-il toujours `git push` dans le container reconstruit ?** Depuis une session, tenter `git push` et vérifier le code de sortie 2. Ce changement déplace la racine de configuration de Claude Code, et si les managed settings vivaient sous `CLAUDE_CONFIG_DIR` le risque serait réel — mais ils sont à `/etc/claude-code/managed-settings.json`, un chemin système indépendant de la variable, donc le risque est quasi nul. Reste que rien en CI n'exerce le chargement des réglages par Claude Code lui-même : le smoke test invoque directement `/usr/local/lib/claude-guard/run`, pas `claude`. Assurance à bas coût sur la propriété de sécurité centrale du dépôt.
 
 ## Suite
 

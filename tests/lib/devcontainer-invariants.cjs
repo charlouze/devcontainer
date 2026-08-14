@@ -155,4 +155,4 @@ function verifier(texte) {
   return violations;
 }
 
-module.exports = { verifier, INVARIANTS, IMAGE, POST_CREATE };
+module.exports = { verifier, INVARIANTS, IMAGE, POST_CREATE, MONTAGES_PARTAGES };
