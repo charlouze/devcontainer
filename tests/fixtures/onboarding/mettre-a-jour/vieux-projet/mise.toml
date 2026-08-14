@@ -1,0 +1,3 @@
+[tasks.setup]
+description = "Provisionnement du dev container"
+run = "pnpm install --frozen-lockfile"
