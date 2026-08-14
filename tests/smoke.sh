@@ -115,6 +115,67 @@ docker volume rm "$HIST_VOL" >/dev/null 2>&1 || true
 check  "HISTFILE pointe vers le volume dans un shell non-login" \
   in_base_i '[ "$HISTFILE" = /home/dev/.history/bash_history ]'
 
+section "Provisionnement"
+
+# `claude` est bouchonné : on vérifie les commandes émises, pas une vraie
+# installation, qui demanderait réseau et authentification en CI.
+check "install-plugins émet les bonnes commandes" in_base '
+  mkdir -p /tmp/bin
+  printf "%s\n" "#!/bin/sh" "echo \"\$@\" >> /tmp/appels" "exit 0" > /tmp/bin/claude
+  chmod +x /tmp/bin/claude
+  PATH=/tmp/bin:$PATH /usr/local/share/devcontainer/lib/install-plugins.sh
+  grep -q "plugin marketplace add anthropics/claude-plugins-official" /tmp/appels &&
+  grep -q "plugin install superpowers@claude-plugins-official" /tmp/appels'
+
+check "install-plugins survit à un plugin en échec" in_base '
+  mkdir -p /tmp/bin
+  printf "%s\n" "#!/bin/sh" "exit 1" > /tmp/bin/claude
+  chmod +x /tmp/bin/claude
+  PATH=/tmp/bin:$PATH /usr/local/share/devcontainer/lib/install-plugins.sh'
+
+check "configure-pnpm écrit storeDir et packageImportMethod" in_base '
+  /usr/local/share/devcontainer/lib/configure-pnpm.sh
+  grep -q "storeDir: /home/dev/.cache/pnpm-store" ~/.config/pnpm/config.yaml &&
+  grep -q "packageImportMethod: copy" ~/.config/pnpm/config.yaml'
+
+check "claude-settings pose skipDangerousModePermissionPrompt" in_base '
+  /usr/local/share/devcontainer/lib/claude-settings.sh
+  [ "$(jq -r .skipDangerousModePermissionPrompt ~/.claude/settings.json)" = true ]'
+
+check "claude-settings préserve les réglages existants" in_base '
+  mkdir -p ~/.claude && echo "{\"theme\":\"dark\"}" > ~/.claude/settings.json
+  /usr/local/share/devcontainer/lib/claude-settings.sh
+  # Les deux clés, pas seulement theme : sans la seconde, un script absent ou
+  # inerte passerait le test.
+  [ "$(jq -r .theme ~/.claude/settings.json)" = dark ] &&
+  [ "$(jq -r .skipDangerousModePermissionPrompt ~/.claude/settings.json)" = true ]'
+
+check "identity.sh réussit sous dev"              in_base '/usr/local/share/devcontainer/lib/identity.sh'
+check "identity.sh avertit sous root" \
+  bash -c 'docker run --rm -u root '"$BASE_IMAGE"' \
+    /usr/local/share/devcontainer/lib/identity.sh 2>&1 | grep -qi root'
+
+check "post-create tolère l'absence de tâche setup" in_base '
+  mkdir -p /tmp/vide && cd /tmp/vide
+  mkdir -p /tmp/bin && printf "%s\n" "#!/bin/sh" "exit 0" > /tmp/bin/claude
+  chmod +x /tmp/bin/claude
+  PATH=/tmp/bin:$PATH /usr/local/share/devcontainer/post-create.sh'
+
+check "post-create appelle mise run setup s'il existe" in_base '
+  mkdir -p /tmp/avec && cd /tmp/avec
+  printf "%s\n" "[tasks.setup]" "run = \"touch /tmp/setup-appele\"" > mise.toml
+  mkdir -p /tmp/bin && printf "%s\n" "#!/bin/sh" "exit 0" > /tmp/bin/claude
+  chmod +x /tmp/bin/claude
+  PATH=/tmp/bin:$PATH /usr/local/share/devcontainer/post-create.sh
+  test -f /tmp/setup-appele'
+
+check "post-create est idempotent" in_base '
+  mkdir -p /tmp/bin && printf "%s\n" "#!/bin/sh" "exit 0" > /tmp/bin/claude
+  chmod +x /tmp/bin/claude
+  cd /tmp
+  PATH=/tmp/bin:$PATH /usr/local/share/devcontainer/post-create.sh &&
+  PATH=/tmp/bin:$PATH /usr/local/share/devcontainer/post-create.sh'
+
 printf '\n'
 if [ "$failures" -gt 0 ]; then
   printf '\033[31m%d vérification(s) en échec\033[0m\n' "$failures"

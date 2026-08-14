@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Provisionnement du dev container. Rejoué à chaque rebuild, donc idempotent.
+set -euo pipefail
+
+lib="$(dirname "$0")/lib"
+say() { printf '\n\033[1;36m==> %s\033[0m\n' "$1"; }
+
+say "Identité";            "$lib/identity.sh"
+say "Toolchain mise";      mise trust --yes && mise install --yes
+say "Store pnpm";          "$lib/configure-pnpm.sh"
+say "Réglages Claude";     "$lib/claude-settings.sh"
+say "Plugins";             "$lib/install-plugins.sh"
+say "Git";                 git config --global --add safe.directory "$PWD"
+
+# Contrat base <-> projet : le projet décrit son provisionnement dans son
+# mise.toml, au même endroit que ses tâches de dev. Un dépôt vide n'a pas encore
+# de tâche `setup` : c'est un cas normal, pas une erreur.
+if mise tasks ls 2>/dev/null | grep -qE '^setup\b'; then
+  say "Provisionnement du projet"
+  mise run setup
+fi
+
+regles=".devcontainer/guard-rules.json"
+cat <<EOF
+
+  Environnement prêt.
+
+    claude          première fois : login
+    yolo            claude --dangerously-skip-permissions
+
+  Garde-fous actifs dans ce container :
+    - aucun credential Google/GCP : le SDK Admin ne peut viser que l'émulateur
+    - git push, firebase deploy, gcloud, publish npm : bloqués par hook
+    - non-root, capabilities Linux réduites, pas de socket Docker
+    - règles projet : $( [ -f "$regles" ] && echo "chargées depuis $regles" || echo "aucune" )
+
+EOF

@@ -1,0 +1,2 @@
+# <dépôt-marketplace>                <nom-marketplace>        <plugin>
+anthropics/claude-plugins-official   claude-plugins-official  superpowers

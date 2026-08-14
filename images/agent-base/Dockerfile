@@ -72,6 +72,16 @@ RUN printf '%s\n' "alias yolo='claude --dangerously-skip-permissions'" \
 
 USER root
 
+# Provisionnement. Le chmod explicite qui suit n'est pas décoratif : COPY
+# --chmod=0444 sur une arborescence applique aussi 0444 au répertoire créé, qui
+# n'est alors plus traversable et dont les fichiers deviennent illisibles.
+COPY --chown=root:root --chmod=0555 post-create.sh /usr/local/share/devcontainer/post-create.sh
+COPY --chown=root:root --chmod=0555 lib/           /usr/local/share/devcontainer/lib/
+COPY --chown=root:root --chmod=0444 etc/plugins.d/ /etc/devcontainer/plugins.d/
+RUN chmod 0755 /usr/local/share/devcontainer \
+               /usr/local/share/devcontainer/lib \
+               /etc/devcontainer/plugins.d
+
 # Le garde-fou, hors de portée de l'agent. Dernière couche : une modification du
 # garde-fou ne doit réinvalider ni l'apt ni les installeurs qui précèdent.
 #
