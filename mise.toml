@@ -12,6 +12,24 @@ run = 'node --test "tests/unit/**/*.test.cjs"'
 description = "Construit l'image agent-base en local"
 run = "docker build -t devcontainer-agent-base:dev images/agent-base"
 
+[tasks.build-web]
+description = "Construit l'image web en local"
+run = "docker build -t devcontainer-web:dev --build-arg BASE=devcontainer-agent-base:dev images/web"
+
 [tasks.test-smoke]
+# Sous Windows, à lancer depuis Git Bash : dans PowerShell, `bash` résout vers
+# C:\Windows\System32\bash.exe, le lanceur WSL, qui échoue sur
+# « execvpe(/bin/bash): No such file or directory ».
 description = "Vérifications au niveau container"
-run = "bash tests/smoke.sh devcontainer-agent-base:dev"
+run = "bash tests/smoke.sh devcontainer-agent-base:dev devcontainer-web:dev"
+
+[tasks.check]
+description = "Tout ce que rejoue la CI"
+# Forme tableau, exécutée dans l'ordre : le smoke test doit voir les images que
+# les deux builds viennent de produire.
+run = [
+  "mise run test-unit",
+  "mise run build-base",
+  "mise run build-web",
+  "mise run test-smoke",
+]

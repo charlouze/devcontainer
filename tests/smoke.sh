@@ -176,6 +176,55 @@ check "post-create est idempotent" in_base '
   PATH=/tmp/bin:$PATH /usr/local/share/devcontainer/post-create.sh &&
   PATH=/tmp/bin:$PATH /usr/local/share/devcontainer/post-create.sh'
 
+if [ -n "$WEB_IMAGE" ]; then
+  in_web() { docker run --rm -u dev "${HARD[@]}" -w /home/dev "$WEB_IMAGE" bash -lc "$1"; }
+
+  # `check` invoque une commande : une fonction du script convient, un `bash -c`
+  # non — les fonctions ne sont pas exportées vers le sous-shell.
+  matches() { case "$2" in $1) return 0 ;; *) return 1 ;; esac; }
+
+  section "Image web"
+  check "node 22 est préinstallé"   matches 'v22.*' "$(in_web 'node --version')"
+  check "pnpm est préinstallé"      in_web 'pnpm --version'
+  check "java est préinstallé"      in_web 'java -version'
+  check "impeccable est déclaré"    in_web 'grep -q impeccable /etc/devcontainer/plugins.d/10-web.txt'
+  check "le garde-fou survit à la couche web" \
+    in_web '/usr/local/lib/claude-guard/node --version'
+
+  # Le cœur du réglage pnpm : le store doit atterrir dans le volume, et surtout
+  # PAS dans le projet — c'est le store dans le projet qui fait que l'IDE ne
+  # démarre jamais.
+  STORE_VOL="smoke-store-$$"
+  check "le store pnpm tombe dans le volume et pas dans le projet" bash -c '
+    docker run --rm -u dev -v '"$STORE_VOL"':/home/dev/.cache/pnpm-store '"$WEB_IMAGE"' bash -lc "
+      /usr/local/share/devcontainer/lib/configure-pnpm.sh
+      mkdir -p /tmp/w && cd /tmp/w
+      printf \"{\\\"name\\\":\\\"w\\\",\\\"version\\\":\\\"0.0.0\\\",\\\"dependencies\\\":{\\\"is-odd\\\":\\\"3.0.1\\\"}}\" > package.json
+      pnpm install --silent >/dev/null 2>&1
+      case \"\$(pnpm store path)\" in /home/dev/.cache/pnpm-store*) ;; *) exit 1 ;; esac
+      [ -z \"\$(find /tmp/w -maxdepth 3 -name \\\"*pnpm-store*\\\" -o -maxdepth 3 -name \\\".pnpm-store\\\")\" ]
+    "'
+  docker volume rm "$STORE_VOL" >/dev/null 2>&1 || true
+
+  # Les montages imbriqués reposent sur l'ordonnancement de Docker par
+  # profondeur de chemin — parent d'abord. Vérifié plutôt que supposé.
+  # Les deux volumes imbriqués du template, pas un seul : chacun a besoin que son
+  # point de montage préexiste dans l'image, sinon Docker le crée en root:root et
+  # `dev` ne peut rien y écrire.
+  A="smoke-cache-$$"; B="smoke-nested-$$"; C="smoke-pw-$$"
+  check "les montages imbriqués s'établissent dans le bon ordre et sous dev" bash -c '
+    docker run --rm -u dev \
+      -v '"$A"':/home/dev/.cache \
+      -v '"$B"':/home/dev/.cache/pnpm-store \
+      -v '"$C"':/home/dev/.cache/ms-playwright \
+      '"$WEB_IMAGE"' bash -lc "
+        touch /home/dev/.cache/pnpm-store/temoin &&
+        touch /home/dev/.cache/ms-playwright/temoin &&
+        mountpoint -q /home/dev/.cache/pnpm-store &&
+        mountpoint -q /home/dev/.cache/ms-playwright"'
+  docker volume rm "$A" "$B" "$C" >/dev/null 2>&1 || true
+fi
+
 printf '\n'
 if [ "$failures" -gt 0 ]; then
   printf '\033[31m%d vérification(s) en échec\033[0m\n' "$failures"

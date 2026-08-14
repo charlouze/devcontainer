@@ -25,9 +25,14 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Points de montage des volumes. Créés avec le bon propriétaire ici pour que
-# Docker initialise les volumes vides avec cet ownership plutôt que root.
+# Docker initialise les volumes vides avec cet ownership plutôt que root : un
+# chemin absent de l'image donne un point de montage root:root, et `dev` ne peut
+# alors rien y écrire. Les deux montages imbriqués sous .cache sont donc listés
+# explicitement, même s'ils sont vides — c'est leur seule raison d'être ici.
 RUN mkdir -p /home/${USERNAME}/.claude \
              /home/${USERNAME}/.cache \
+             /home/${USERNAME}/.cache/pnpm-store \
+             /home/${USERNAME}/.cache/ms-playwright \
              /home/${USERNAME}/.history \
              /home/${USERNAME}/.local/bin \
  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}

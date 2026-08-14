@@ -1,0 +1,2 @@
+# <dépôt-marketplace>   <nom-marketplace>   <plugin>
+pbakaus/impeccable      impeccable          impeccable
