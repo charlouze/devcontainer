@@ -102,6 +102,12 @@ ligne Playwright ne se met que si `@playwright/test` est une dépendance,
 normalement un outil de test : les navigateurs vont dans un volume partagé,
 leurs dépendances système sont déjà dans l'image.
 
+Un `functions/package.json` n'appelle rien de plus. Dans un dépôt Nx, les
+Cloud Functions sont une app du workspace comme les autres, couverte par
+l'install racine ci-dessus — n'ajoute pas de `cd functions && pnpm install`.
+La tâche `setup` ne fait qu'installer les dépendances ; l'enchaînement
+build → émulateurs relève du `mise.toml` du projet, pas d'elle.
+
 Si le dépôt n'a pas de `mise.toml`, crée-le avec la seule section `[tasks.setup]`
 — les versions d'outils sont l'affaire du projet, pas la tienne.
 

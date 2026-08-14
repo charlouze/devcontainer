@@ -94,8 +94,16 @@ changement de majeure, mettre aussi à jour le tag du template
 (`plugin/skills/onboard-devcontainer/references/devcontainer.template.json`) :
 `tests/unit/plugin-manifests.test.cjs` échoue tant que les deux divergent.
 
+Ne pose le tag qu'une fois `.claude-plugin/marketplace.json` présent sur
+`main` avec cette version : le plugin est déclaré dans `plugins.d`, donc
+chaque container tente de l'installer au provisionnement, et tant que la
+marketplace publiée ne le contient pas, `install-plugins.sh` affiche un
+avertissement à chaque fois. Rare en pratique puisque `git push origin main
+--tags` ci-dessous pousse les deux ensemble, mais l'ordre compte si le push
+est fait en deux temps.
+
 ```bash
-git tag v1.0.0
+git tag v1.1.0
 git push origin main --tags
 ```
 

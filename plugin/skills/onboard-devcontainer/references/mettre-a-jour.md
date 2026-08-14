@@ -10,7 +10,11 @@ Le tag de référence est celui de `references/devcontainer.template.json`, et
 lui seul. Le plugin est versionné avec les images : ce tag existe forcément,
 celui que tu inventerais, non.
 
-- même majeure que le fichier du dépôt → rien à faire côté tag ;
+- même majeure que le fichier du dépôt, et déjà sur le tag flottant (`…:1`,
+  pas `…:1.x.y`) → rien à faire côté tag ;
+- même majeure mais tag figé (`…:1.x.y`) → réaligne sur le tag flottant du
+  template : l'invariant `image-tag` de la liste de contrôle finale refuse un
+  tag figé, un projet doit suivre les correctifs ;
 - majeure supérieure → aligne le fichier, et **annonce-le comme un changement de
   majeure** : dis ce qui change, et propose de lire les notes de version plutôt
   que de faire le saut à l'aveugle.
@@ -44,9 +48,20 @@ se montre et se fait valider comme le reste avant d'être corrigée.
 
 - Si le `mise.toml` n'a pas de tâche `setup`, ajoute-la comme au mode
   « brancher ». Si elle existe, **n'y touche pas** : c'est le projet qui la tient.
-- Si des émulateurs ont été ajoutés au `firebase.json` depuis le branchement,
-  leurs ports et variables manquent probablement : applique les mêmes règles de
-  lecture qu'au mode « brancher ».
+- Si `firebase.json` ou `.firebaserc` existe, relis-les avec les règles de
+  lecture du mode « brancher » §1, et corrige les ports et libellés
+  d'émulateurs dans `forwardPorts`/`portsAttributes`, leurs variables dans
+  `containerEnv`, et l'identifiant de projet — **en retrait comme en ajout**.
+  Un émulateur apparu depuis le branchement gagne son port et sa variable ; un
+  émulateur retiré de `firebase.json` perd les siens ; un port déplacé se
+  corrige à la nouvelle valeur ; un `demo-<slug>` posé faute de mieux au mode
+  « amorcer » se remplace par le véritable identifiant dès que `.firebaserc`
+  en fournit un. Le port de serve (Angular/Nx) n'est pas concerné : il ne vient
+  pas de `firebase.json`, la règle du §2 continue de le laisser au projet.
+  C'est la seule exception à cette règle qui laisse `containerEnv` et la liste
+  des ports au projet : elle ne vaut que pour ce que `firebase.json` ou
+  `.firebaserc` disent explicitement, et seulement quand l'un des deux existe
+  — en leur absence, rien ne change.
 - Si `.devcontainer/` contient encore un `Dockerfile`, un `post-create.sh`, un
   `agent-guard.cjs` ou un `managed-settings.json`, le dépôt est en fait à moitié
   migré : bascule sur `references/migrer.md` et dis-le.
