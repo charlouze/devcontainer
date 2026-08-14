@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "projects": {
+    "mon-appli": {
+      "projectType": "application",
+      "architect": {
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": { "port": 4300 }
+        }
+      }
+    }
+  }
+}

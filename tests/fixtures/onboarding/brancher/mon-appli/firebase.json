@@ -1,0 +1,13 @@
+{
+  "hosting": {
+    "public": "dist/apps/mon-appli/browser"
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "ui": { "enabled": true, "host": "0.0.0.0" },
+    "auth": { "host": "0.0.0.0", "port": 9099 },
+    "firestore": { "host": "0.0.0.0", "port": 8081 }
+  }
+}
