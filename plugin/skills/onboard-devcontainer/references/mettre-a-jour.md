@@ -11,13 +11,33 @@ lui seul. Le plugin est versionné avec les images : ce tag existe forcément,
 celui que tu inventerais, non.
 
 - même majeure que le fichier du dépôt, et déjà sur le tag flottant (`…:1`,
-  pas `…:1.x.y`) → rien à faire côté tag ;
+  pas `…:1.x.y`) → rien à changer dans le fichier ;
 - même majeure mais tag figé (`…:1.x.y`) → réaligne sur le tag flottant du
   template : l'invariant `image-tag` de la liste de contrôle finale refuse un
   tag figé, un projet doit suivre les correctifs ;
 - majeure supérieure → aligne le fichier, et **annonce-le comme un changement de
   majeure** : dis ce qui change, et propose de lire les notes de version plutôt
   que de faire le saut à l'aveugle.
+
+Le fichier réglé, l'image du poste ne l'est pas pour autant. **Docker ne
+re-télécharge pas un tag dont il détient déjà une copie locale** : le container
+se recrée sur l'ancienne image, sans qu'aucun message ne le signale. C'est le
+cas le plus fréquent — même majeure, tag flottant inchangé, et pourtant tout le
+travail de mise à jour reste sans effet.
+
+Propose donc le rafraîchissement, et ne le lance qu'une fois validé. Le gate du
+§3 vaut ici aussi, en l'étendant de ce qu'on écrit à ce qu'on exécute :
+
+```bash
+docker pull ghcr.io/charlouze/devcontainer-web:1
+```
+
+Le tag est celui du fichier du dépôt, `-web` ou `-agent-base` selon le projet.
+
+Si `docker` est injoignable, **ne conclus pas que c'est réglé** : c'est ce qui
+arrive quand tu tournes dans le container, dont le garde-fou refuse le socket
+Docker par construction. Dis-le, et donne la commande à lancer sur l'hôte — tu
+ne peux pas la faire à sa place.
 
 ## 2. Les écarts avec le template
 
@@ -70,3 +90,7 @@ se montre et se fait valider comme le reste avant d'être corrigée.
 
 Repasse la liste de contrôle finale de `SKILL.md`. Si le tag a changé de majeure,
 rappelle que la prochaine ouverture reconstruira le container.
+
+Et dès qu'une image a été rafraîchie au §1, dis qu'il faut **recréer** le
+container pour en profiter : un `pull` seul ne change rien, celui qui tourne
+reste sur l'image avec laquelle il a été créé.
