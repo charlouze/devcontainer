@@ -24,24 +24,43 @@ Tags publiés : `1` (flottant sur la majeure, c'est celui à utiliser), `1.x.y`
 
 ## Brancher un projet
 
-1. Copier `templates/web/devcontainer.json` dans `.devcontainer/devcontainer.json`
-   du projet. Les commentaires du fichier expliquent chaque réglage : ils font
-   partie du livrable, à conserver.
-2. Préfixer par le projet les noms de volumes qui lui sont propres (`cdf-cache`,
-   `cdf-history`). Les volumes `agent-*` restent partagés entre projets à dessein.
-3. Ajuster `forwardPorts`, `portsAttributes` et `containerEnv`.
-4. Ajouter une tâche `setup` au `mise.toml` du projet : c'est le contrat entre
-   l'image et le projet. `post-create.sh` la lance si elle existe, et son absence
-   n'est pas une erreur.
+```bash
+claude plugin marketplace add charlouze/devcontainer
+claude plugin install devcontainer@devcontainer
+```
+
+Puis, dans le dépôt à brancher :
+
+```
+/devcontainer-init
+```
+
+Un seul point d'entrée, quatre modes déduits de ce que le dépôt contient :
+
+| Le dépôt… | Mode |
+|---|---|
+| a du code, pas de `.devcontainer` | brancher |
+| a son propre `.devcontainer` d'avant ces images | migrer |
+| est vide | amorcer — le container vient d'abord, le projet naît dedans |
+| est déjà branché | mettre à jour |
+
+Le plugin est aussi installé d'office dans les containers, mais il est fait pour
+être installé **sur le poste** : il doit pouvoir agir avant que le container
+existe.
+
+Pour brancher un dépôt à la main, le fichier de référence est
+`plugin/skills/onboard-devcontainer/references/devcontainer.template.json` — ses
+commentaires expliquent chaque réglage, y compris le préfixage des volumes
+propres au projet, et font partie du livrable au même titre que le JSON. Il
+reste dans tous les cas à ajouter une tâche `setup` au `mise.toml` du projet :
+c'est le contrat entre l'image et le projet. `post-create.sh` la lance si elle
+existe, et son absence n'est pas une erreur.
 
 ```toml
 [tasks.setup]
 description = "Provisionnement du projet"
 run = "pnpm install --frozen-lockfile"
 ```
-
-Un plugin Claude Code d'onboarding automatisera ces quatre étapes (brancher,
-migrer, amorcer, mettre à jour). Il fait l'objet d'un second plan.
 
 ## Règles de garde-fou propres à un projet
 
@@ -69,8 +88,22 @@ erreur de configuration.
 
 ## Publier une version
 
+Avant de taguer, aligner la version du plugin sur celle des images, dans
+`.claude-plugin/marketplace.json` et `plugin/.claude-plugin/plugin.json`. Sur un
+changement de majeure, mettre aussi à jour le tag du template
+(`plugin/skills/onboard-devcontainer/references/devcontainer.template.json`) :
+`tests/unit/plugin-manifests.test.cjs` échoue tant que les deux divergent.
+
+Ne pose le tag qu'une fois `.claude-plugin/marketplace.json` présent sur
+`main` avec cette version : le plugin est déclaré dans `plugins.d`, donc
+chaque container tente de l'installer au provisionnement, et tant que la
+marketplace publiée ne le contient pas, `install-plugins.sh` affiche un
+avertissement à chaque fois. Rare en pratique puisque `git push origin main
+--tags` ci-dessous pousse les deux ensemble, mais l'ordre compte si le push
+est fait en deux temps.
+
 ```bash
-git tag v1.0.0
+git tag v1.1.0
 git push origin main --tags
 ```
 

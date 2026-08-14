@@ -1,0 +1,41 @@
+{
+  "name": "vieux-projet (agent sandbox)",
+  "image": "ghcr.io/charlouze/devcontainer-web:1",
+
+  "containerUser": "root",
+  "remoteUser": "dev",
+
+  "containerEnv": {
+    "FIRESTORE_EMULATOR_HOST": "127.0.0.1:8080",
+    "GCLOUD_PROJECT": "vieux-projet-dev",
+    "GOOGLE_CLOUD_PROJECT": "vieux-projet-dev"
+  },
+
+  "mounts": [
+    "source=agent-claude,target=/home/dev/.claude,type=volume",
+    "source=vieux-projet-cache,target=/home/dev/.cache,type=volume",
+    "source=agent-pnpm-store,target=/home/dev/.cache/pnpm-store,type=volume",
+    "source=vieux-projet-history,target=/home/dev/.history,type=volume"
+  ],
+
+  "runArgs": [
+    "--security-opt", "no-new-privileges",
+    "--cap-drop", "ALL",
+    "--cap-add", "CHOWN", "--cap-add", "FOWNER", "--cap-add", "DAC_OVERRIDE",
+    "--cap-add", "SETUID", "--cap-add", "SETGID"
+  ],
+
+  "forwardPorts": [4200, 8080],
+  "portsAttributes": {
+    "4200": { "label": "App Angular" }
+  },
+
+  "postCreateCommand": "/usr/local/share/devcontainer/post-create.sh",
+
+  "customizations": {
+    "jetbrains": {
+      "backend": "IntelliJ",
+      "plugins": ["com.github.l34130.mise"]
+    }
+  }
+}

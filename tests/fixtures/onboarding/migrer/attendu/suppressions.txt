@@ -1,0 +1,4 @@
+.devcontainer/Dockerfile
+.devcontainer/agent-guard.cjs
+.devcontainer/managed-settings.json
+.devcontainer/post-create.sh

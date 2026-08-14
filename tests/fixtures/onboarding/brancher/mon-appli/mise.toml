@@ -1,0 +1,7 @@
+[tools]
+node = "22"
+pnpm = "latest"
+
+[tasks.install]
+description = "Installe les dépendances"
+run = "pnpm install --frozen-lockfile"

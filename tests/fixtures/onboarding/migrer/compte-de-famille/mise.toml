@@ -1,0 +1,16 @@
+[tools]
+node = "22"
+pnpm = "latest"
+
+[tasks.node-install]
+description = "Installe les packages nodes"
+run = "pnpm install"
+
+[tasks.install]
+description = "Install les packages et les skills"
+run = { tasks = ["node-install"] }
+
+[tasks.emulators]
+description = "Démarrer les émulateurs Firebase"
+tools.java = "25"
+run = "pnpm exec firebase emulators:start"

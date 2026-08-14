@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "devcontainer",
+  "description": "Dev containers durcis pour agents autonomes, et l'onboarding des dépôts qui les utilisent",
+  "owner": {
+    "name": "Charlouze",
+    "email": "me@charlouze.com"
+  },
+  "plugins": [
+    {
+      "name": "devcontainer",
+      "description": "Branche, migre, amorce ou met à jour le dev container d'un dépôt sur les images ghcr.io/charlouze/devcontainer-*",
+      "version": "1.1.0",
+      "source": "./plugin"
+    }
+  ]
+}

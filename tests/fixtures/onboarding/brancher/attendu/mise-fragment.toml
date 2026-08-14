@@ -1,0 +1,6 @@
+[tasks.setup]
+description = "Provisionnement du dev container"
+run = """
+mise run install
+pnpm exec playwright install chromium webkit
+"""

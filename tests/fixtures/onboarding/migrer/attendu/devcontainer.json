@@ -1,0 +1,82 @@
+{
+  "name": "Compte-de-Famille (agent sandbox)",
+  "image": "ghcr.io/charlouze/devcontainer-web:1",
+
+  // Le clone-from-VCS est fait par un container helper tournant en root :
+  // l'arbre appartient à root et JetBrains doit le rendre à `dev` avant les
+  // lifecycle scripts, ce qui exige root et CAP_CHOWN. L'IDE, les terminaux et
+  // les lifecycle scripts tournent ensuite sous `remoteUser`.
+  "containerUser": "root",
+  "remoteUser": "dev",
+
+  // Aucun credential cloud n'entre dans le container. Combiné aux variables
+  // d'émulateur ci-dessous, le SDK Admin ne peut atteindre que l'émulateur
+  // local : sans Application Default Credentials, il échoue au lieu d'écrire
+  // dans le vrai projet.
+  //
+  // Aucune variable ne pilote le garde-fou : il s'active sur la présence de
+  // /etc/claude-guard/enabled, root et non falsifiable, précisément parce que
+  // l'agent contrôle l'environnement des processus qu'il lance.
+  "containerEnv": {
+    "FIRESTORE_EMULATOR_HOST": "127.0.0.1:8080",
+    "FIREBASE_AUTH_EMULATOR_HOST": "127.0.0.1:9099",
+    "GCLOUD_PROJECT": "compte-de-famille-dev",
+    "GOOGLE_CLOUD_PROJECT": "compte-de-famille-dev"
+  },
+
+  // Les volumes `agent-*` sont volontairement partagés entre projets : login et
+  // plugins une seule fois, caches content-addressed où le partage est sûr par
+  // construction. Les deux autres sont préfixés par le projet — deux containers
+  // ouverts en même temps ne doivent se disputer ni le backend JetBrains ni
+  // l'historique de shell.
+  "mounts": [
+    "source=agent-claude,target=/home/dev/.claude,type=volume",
+    "source=compte-de-famille-cache,target=/home/dev/.cache,type=volume",
+    "source=agent-pnpm-store,target=/home/dev/.cache/pnpm-store,type=volume",
+    "source=agent-playwright,target=/home/dev/.cache/ms-playwright,type=volume",
+    "source=compte-de-famille-history,target=/home/dev/.history,type=volume"
+  ],
+
+  // Les capabilities conservées ne servent qu'à la mise en place décrite plus
+  // haut. Un uid non-root a de toute façon un jeu de capabilities effectif vide,
+  // et `no-new-privileges` lui interdit de passer root.
+  //
+  // `no-new-privileges` neutralise `sudo` : aucun outil ne s'ajoute à chaud côté
+  // système. Ni SYS_ADMIN ni droit de montage, donc pas de chemin d'évasion
+  // connu. C'est aussi ce qui rend le garde-fou root-only réellement
+  // inatteignable depuis la session.
+  //
+  // Rien d'autre dans `runArgs` : le parser d'IntelliJ ne connaît qu'un
+  // sous-ensemble des options `docker run` et échoue sur les autres
+  // (« ParseException: Unrecognized argument »). Les plafonds CPU/RAM se règlent
+  // dans %UserProfile%\.wslconfig.
+  "runArgs": [
+    "--security-opt", "no-new-privileges",
+    "--cap-drop", "ALL",
+    "--cap-add", "CHOWN", "--cap-add", "FOWNER", "--cap-add", "DAC_OVERRIDE",
+    "--cap-add", "SETUID", "--cap-add", "SETGID"
+  ],
+
+  // Un port ouvert sans libellé est illisible dans l'IDE : les deux listes se
+  // tiennent à jour ensemble.
+  "forwardPorts": [4200, 4000, 8080, 9099],
+  "portsAttributes": {
+    "4200": { "label": "App Angular" },
+    "4000": { "label": "Firebase Emulator UI" },
+    "8080": { "label": "Firestore emulator" },
+    "9099": { "label": "Auth emulator" }
+  },
+
+  // Fourni par l'image. Rien de critique ne passe par le label
+  // `devcontainer.metadata` : le support des labels d'image par le plugin
+  // devcontainer de JetBrains est incertain, et un postCreateCommand ignoré
+  // donnerait une panne silencieuse de tout le provisionnement.
+  "postCreateCommand": "/usr/local/share/devcontainer/post-create.sh",
+
+  "customizations": {
+    "jetbrains": {
+      "backend": "IntelliJ",
+      "plugins": ["com.github.l34130.mise"]
+    }
+  }
+}
