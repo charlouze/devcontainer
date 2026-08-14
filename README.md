@@ -202,11 +202,17 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
 - **Les règles projet sont supprimables**, puisqu'elles vivent dans le workspace.
   D'où le fait qu'elles ne soient qu'additives.
 - **Le workspace ne vit que dans un volume Docker**, pas sur le disque de
-  l'hôte. Un `docker volume prune`, une remise à zéro de Docker Desktop ou un
-  volume orphelin après un rebuild raté emporte le travail non poussé, et aucune
-  sauvegarde de l'hôte ne le couvre. La fenêtre est plus longue ici qu'ailleurs :
-  le garde-fou bloque `git push`, donc c'est l'humain qui publie, et rien ne le
-  fait à sa place.
+  l'hôte — et **il ne survit pas à la recréation du container**. Le plugin dev
+  container de JetBrains crée un volume de sources neuf à chaque recréation et
+  re-clone depuis le distant (observé le 2026-08-15) ; c'est aussi ce qui permet
+  d'ouvrir le même dépôt dans plusieurs containers à la fois, donc ce n'est
+  probablement pas un comportement passager. Conséquence : ce qui n'a pas été
+  poussé disparaît, **commits locaux compris, et sur un rebuild parfaitement
+  réussi** — pas seulement sur un accident. Les volumes ainsi laissés orphelins,
+  un `docker volume prune` ou une remise à zéro de Docker Desktop achèvent le
+  reste, et aucune sauvegarde de l'hôte ne les couvre. La fenêtre est d'autant
+  plus longue que le garde-fou bloque `git push` : c'est l'humain qui publie, et
+  rien ne le fait à sa place.
 - **Le volume de login est partagé entre projets, donc `.claude.json` aussi.**
   Le container d'un projet peut lire la configuration MCP d'un autre —
   `mcpServers` porte couramment des clés d'API tierces dans ses blocs `env` —
