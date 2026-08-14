@@ -62,9 +62,12 @@ Ne génère pas l'application toi-même : `nx create-workspace` et `firebase ini
 ont leurs propres générateurs, et ils sont à lancer dans le container, pas ici.
 
 Dis-lui enfin que **le projet qui va naître dans ce container vivra dans un
-volume Docker et pas sur son disque**. C'est plus aigu ici que dans les autres
-modes : le dépôt est vide, donc il n'existe aucune copie ailleurs tant que rien
-n'a été poussé — et le garde-fou bloque `git push`.
+volume Docker et pas sur son disque**, et qu'il **ne survit pas à la recréation
+du container** : JetBrains re-clone depuis le distant dans un volume de sources
+neuf. C'est plus aigu ici que dans les autres modes : le dépôt est vide, donc ce
+re-clone ne ramènerait rien, et il n'existe aucune copie ailleurs tant que rien
+n'a été poussé — or le garde-fou bloque `git push`. Le premier push est donc à
+faire tôt, pas à la fin.
 
 ## 5. Répertoire non vide, sans manifeste Node ni Firebase reconnu
 
