@@ -31,7 +31,11 @@ deux cas.
 | Auth | 9099 | `FIREBASE_AUTH_EMULATOR_HOST` |
 | Storage | 9199 | `FIREBASE_STORAGE_EMULATOR_HOST` |
 
-La variable vaut `127.0.0.1:<port>`. C'est elle qui empêche les SDK de viser
+La variable vaut `127.0.0.1:<port>`, où `<port>` est le port réellement
+configuré — celui trouvé pour cet émulateur (`emulators.<nom>.port` s'il est
+présent, sinon le port par défaut de la table), jamais aveuglément le port par
+défaut de la table : c'est la même autorité de `emulators` sur un port
+déplacé qui s'applique ici. C'est cette variable qui empêche les SDK de viser
 autre chose que le local. Functions et Hosting n'ont pas d'équivalent côté
 client — l'émulateur injecte lui-même l'environnement dans le runtime des
 fonctions, seul le port est à ouvrir.
@@ -50,8 +54,9 @@ coexister le temps d'une migration Angular→Nx :
 `nx.json` est la config du workspace (défauts de targets, task runner) : il ne
 porte normalement pas le port de serve d'un projet précis, ne le lis pas pour
 cette valeur. Si `project.json` et `angular.json` coexistent pour le même
-projet, `project.json` prime — c'est la source que Nx résout en premier une
-fois la migration commencée. À défaut de tout, 4200.
+projet, retiens `project.json` — c'est une convention adoptée ici pour trancher
+sans ambiguïté, pas un fait vérifié sur la façon dont Nx résout ses sources. À
+défaut de tout, 4200.
 
 **`package.json`** — la présence de `@playwright/test` décide de la ligne
 Playwright de la tâche `setup`, et de rien d'autre.
@@ -92,9 +97,10 @@ pnpm exec playwright install chromium webkit
 ```
 
 Sinon, `pnpm install --frozen-lockfile` à la place de `mise run install`. La
-ligne Playwright ne se met que si `@playwright/test` est une dépendance : les
-navigateurs vont dans un volume partagé, leurs dépendances système sont déjà
-dans l'image.
+ligne Playwright ne se met que si `@playwright/test` est une dépendance,
+`dependencies` ou `devDependencies` indifféremment — c'est là que se trouve
+normalement un outil de test : les navigateurs vont dans un volume partagé,
+leurs dépendances système sont déjà dans l'image.
 
 Si le dépôt n'a pas de `mise.toml`, crée-le avec la seule section `[tasks.setup]`
 — les versions d'outils sont l'affaire du projet, pas la tienne.

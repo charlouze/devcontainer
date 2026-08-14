@@ -1,6 +1,6 @@
 ---
 name: onboard-devcontainer
-description: À utiliser quand un dépôt doit recevoir un dev container, quand une configuration de dev container existante doit passer sur les images partagées ghcr.io/charlouze/devcontainer-*, quand un dépôt vide doit être amorcé, ou quand un dépôt déjà branché doit suivre une nouvelle version des images — notamment après /devcontainer-init.
+description: À utiliser quand un dépôt doit recevoir un dev container, quand une configuration de dev container existante doit passer sur les images partagées ghcr.io/charlouze/devcontainer-*, quand un dépôt sans manifeste Node ni Firebase reconnu doit être amorcé, ou quand un dépôt déjà branché doit suivre une nouvelle version des images — notamment après /devcontainer-init.
 ---
 
 # Onboarding d'un dev container
@@ -27,6 +27,17 @@ correspond :
 | ni `package.json` ni `firebase.json` à la racine | amorcer | `references/amorcer.md` |
 | du code, mais pas de `.devcontainer/` | brancher | `references/brancher.md` |
 
+« Ni `package.json` ni `firebase.json` » veut dire : sans manifeste Node ni
+Firebase reconnu — pas « sans aucun fichier ». Un dépôt Python ou Go bien
+rempli, mais qui n'a ni l'un ni l'autre, tombe dans « amorcer » : c'est « vide »
+au sens où cette skill n'a rien à y lire, pas au sens où le répertoire serait
+sans contenu.
+
+« Du code » à la dernière ligne n'est pas un critère à évaluer : c'est le cas
+par défaut, appliqué par élimination à tout dépôt qui n'a matché aucune des
+trois lignes précédentes — donc qui porte l'un des deux manifestes et n'a pas
+de `.devcontainer/`.
+
 Annonce le mode retenu et ce qui l'a déclenché avant d'agir. Si deux cas
 semblent correspondre, demande — c'est le signe d'un dépôt à moitié migré, et se
 tromper de mode y ferait perdre du travail.
@@ -47,9 +58,11 @@ tromper de mode y ferait perdre du travail.
   de fin retirés. `Compte-de-Famille` → `compte-de-famille`.
 - **Le nom lisible du projet** — celui qui remplace `<Nom du projet>` dans le
   template — se reprend tel qu'il apparaît dans le dépôt : le champ `name` de
-  `package.json`, à défaut le nom du répertoire. Aucune retouche de casse ni
-  d'espacement : c'est mécanique, donc reproductible d'une exécution à
-  l'autre, contrairement à une reformulation « telle qu'un humain l'écrirait ».
+  `package.json`, à défaut le nom du répertoire. Si `package.json` existe mais
+  n'a pas de champ `name`, c'est le même défaut : le nom du répertoire.
+  Aucune retouche de casse ni d'espacement : c'est mécanique, donc
+  reproductible d'une exécution à l'autre, contrairement à une reformulation
+  « telle qu'un humain l'écrirait ».
 - **Rien n'est supprimé ni écrasé sans que le diff ait été montré** et validé.
   Vaut pour les fichiers comme pour les clés d'un fichier existant.
 - **Le garde-fou ne se négocie pas.** Tu peux écrire un
