@@ -1,0 +1,81 @@
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  BASE: ghcr.io/${{ github.repository_owner }}/devcontainer-agent-base
+  WEB: ghcr.io/${{ github.repository_owner }}/devcontainer-web
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Un motif glob, et non le répertoire : `node --test` interprète ses
+      # arguments comme des globs, donc `tests/unit/` matche le répertoire
+      # lui-même et node tente de l'exécuter comme un module.
+      - name: Tests unitaires
+        run: node --test "tests/unit/**/*.test.cjs"
+
+      # `docker build` direct plutôt que build-push-action : le builder buildx
+      # par défaut tourne dans un container et ne voit pas les images du démon
+      # local, donc le `FROM devcontainer-agent-base:dev` de l'image web ne
+      # résoudrait pas. Les runners étant amd64, le build est natif.
+      - name: Build agent-base
+        run: docker build -t devcontainer-agent-base:dev images/agent-base
+
+      - name: Build web
+        run: |
+          docker build -t devcontainer-web:dev \
+            --build-arg BASE=devcontainer-agent-base:dev images/web
+
+      # Le smoke test tourne AVANT toute publication : un échec ne doit jamais
+      # atteindre le tag flottant `1`, sur lequel pointent tous les projets.
+      - name: Smoke test
+        run: bash tests/smoke.sh devcontainer-agent-base:dev devcontainer-web:dev
+
+      - name: Dériver les tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: tags
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          major="${version%%.*}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "major=$major" >> "$GITHUB_OUTPUT"
+
+      - name: Login GHCR
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publier agent-base
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          for tag in "${{ steps.tags.outputs.version }}" "${{ steps.tags.outputs.major }}" "${GITHUB_SHA}"; do
+            docker tag devcontainer-agent-base:dev "${BASE}:${tag}"
+            docker push "${BASE}:${tag}"
+          done
+
+      - name: Publier web
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          for tag in "${{ steps.tags.outputs.version }}" "${{ steps.tags.outputs.major }}" "${GITHUB_SHA}"; do
+            docker tag devcontainer-web:dev "${WEB}:${tag}"
+            docker push "${WEB}:${tag}"
+          done
