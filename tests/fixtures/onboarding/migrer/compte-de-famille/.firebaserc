@@ -1,0 +1,14 @@
+{
+  "targets": {
+    "compte-de-famille-dev": {
+      "hosting": {
+        "compte-de-famille": [
+          "compte-de-famille-dev"
+        ]
+      }
+    }
+  },
+  "projects": {
+    "default": "compte-de-famille-dev"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "name": "Compte-de-Famille (agent sandbox)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+
+  // Le clone-from-VCS est fait par un container helper tournant en root : l'arbre
+  // appartient à root, et JetBrains doit le rendre à `dev` avant les lifecycle
+  // scripts. Ce chown a besoin de root ET de CAP_CHOWN — d'où `containerUser`
+  // root. L'IDE, les terminaux et les lifecycle scripts tournent eux sous
+  // `remoteUser`, donc en `dev` : l'agent n'est jamais root, et
+  // `no-new-privileges` lui interdit de le devenir.
+  "containerUser": "root",
+  "remoteUser": "dev",
+
+  // Aucun credential cloud n'entre ici. Combiné aux variables d'émulateur
+  // ci-dessous, le Admin SDK des tests e2e ne peut atteindre que l'émulateur
+  // local : sans Application Default Credentials il échoue au lieu d'écrire
+  // dans le vrai projet Firebase.
+  "containerEnv": {
+    "CDF_SANDBOX": "1",
+    "FIRESTORE_EMULATOR_HOST": "127.0.0.1:8080",
+    "FIREBASE_AUTH_EMULATOR_HOST": "127.0.0.1:9099",
+    "GCLOUD_PROJECT": "compte-de-famille-dev",
+    "GOOGLE_CLOUD_PROJECT": "compte-de-famille-dev"
+  },
+
+  // ~/.claude : login et sessions de l'agent, survit aux rebuilds.
+  // ~/.cache  : backend IDE JetBrains, navigateurs Playwright, store pnpm.
+  "mounts": [
+    "source=cdf-agent-claude,target=/home/dev/.claude,type=volume",
+    "source=cdf-agent-cache,target=/home/dev/.cache,type=volume"
+  ],
+
+  // `no-new-privileges` neutralise sudo : aucun outil ne s'ajoute à chaud, tout
+  // passe par le Dockerfile — la seule discipline qui garde l'image reproductible.
+  // C'est aussi ce qui rend le garde-fou root-only réellement infranchissable.
+  // `--cap-drop ALL` empêche la sortie du container : sans SYS_ADMIN ni droit de
+  // montage, il n'y a pas de chemin d'évasion connu.
+  //
+  // Rien d'autre ici : le parser de runArgs d'IntelliJ ne connaît qu'un
+  // sous-ensemble des options docker run et échoue sur les autres
+  // (`ParseException: Unrecognized argument`). Les plafonds CPU/RAM se règlent
+  // globalement dans %UserProfile%\.wslconfig — voir README.
+  // Les capabilities rendues servent uniquement à la mise en place par JetBrains
+  // (chown du clone vers `dev`, bascule d'utilisateur). Elles n'élargissent en
+  // rien le pouvoir de l'agent : un uid non-root a un jeu de capabilities
+  // effectif vide quoi qu'il arrive, et `no-new-privileges` lui interdit de
+  // passer root. Ni SYS_ADMIN ni droit de montage : pas de sortie du container.
+  "runArgs": [
+    "--security-opt", "no-new-privileges",
+    "--cap-drop", "ALL",
+    "--cap-add", "CHOWN",
+    "--cap-add", "FOWNER",
+    "--cap-add", "DAC_OVERRIDE",
+    "--cap-add", "SETUID",
+    "--cap-add", "SETGID"
+  ],
+
+  "forwardPorts": [4200, 4000, 8080, 9099],
+  "portsAttributes": {
+    "4200": { "label": "App Angular" },
+    "4000": { "label": "Firebase Emulator UI" },
+    "8080": { "label": "Firestore emulator" },
+    "9099": { "label": "Auth emulator" }
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "jetbrains": {
+      "backend": "IntelliJ",
+      "plugins": ["com.github.l34130.mise"]
+    }
+  }
+}
