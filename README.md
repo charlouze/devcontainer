@@ -241,17 +241,26 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
 - **Le jeton d'authentification de l'agent est lisible depuis la session.** Une
   règle qui prétendrait en interdire la lecture serait décorative.
 - **L'agent peut commiter localement et modifier n'importe quel fichier du
-  workspace.** Il peut aussi pousser une branche, ouvrir et modifier une PR ou
-  une issue, et lire le dépôt (`gh repo view`, `gh search`, `gh browse`…).
-  Restent bloqués : `firebase deploy`, `npm publish`, tout `gcloud`, et les
-  commandes `gh` hors lecture, PR et issues — `gh pr merge`, `gh pr close`,
-  `gh api` et `gh auth login` compris.
+  workspace.** Il peut aussi pousser une branche, ouvrir et modifier une PR,
+  suivre la CI (`gh pr checks`, `gh run watch`) et lire le dépôt (`gh repo view`,
+  `gh search`, `gh browse`…). Restent bloqués : `firebase deploy`, `npm publish`,
+  tout `gcloud`, et les commandes `gh` hors lecture et PR — `gh pr merge`,
+  `gh pr close`, `gh api` et `gh auth login` compris. La liste blanche du
+  garde-fou nomme aussi `gh issue`, mais le PAT n'a pas la permission `Issues` :
+  GitHub répondrait 403. Le garde-fou est la limite la plus molle des deux, donc
+  la laisser plus large que le jeton ne coûte rien.
 - **`main` et le merge ne sont protégés que par la consigne.** Le garde-fou
   refuse `git push origin main` et `gh pr merge`, mais le jeton GitHub est
   lisible depuis la session et l'API est joignable : un appel direct passerait.
   C'est un choix, pas un oubli — les garanties dures sont la portée du PAT et les
   permissions qu'il n'a pas. Une ruleset sur `main` referme le premier point là
   où GitHub l'accepte ; l'onboarding la tente.
+- **Un `git push` sans argument depuis `main` échappe au garde-fou**, comme
+  `git push --force` sans argument. La règle ne lit que la ligne de commande et
+  ne connaît pas la branche courante : elle ne voit ni `main` ni de refspec, donc
+  elle laisse passer. C'est la forme la plus probable de l'accident, puisque
+  c'est ce qu'on tape après un `-u`. La bloquer casserait le flux de branche
+  normal ; seule une ruleset côté GitHub ferme vraiment ce trou.
 - **Le volume `agent-gh` est partagé entre projets**, donc tout container peut
   pousser sur tous les dépôts que le PAT couvre. Même portée que `.claude.json`,
   déjà partagé.

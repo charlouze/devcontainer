@@ -25,8 +25,20 @@ if ! grep -qxF "$import" "$memoire"; then
   # Forme en flux, pas `"$(cat "$memoire")"` : la substitution de commande
   # aurait mangé les retours à la ligne finaux du fichier, qui cesserait
   # d'être un texte POSIX bien formé et romprait un `>>` ultérieur.
-  { printf '%s\n\n' "$import"; cat "$memoire"; } > "$memoire.tmp" \
-    && mv "$memoire.tmp" "$memoire"
+  #
+  # Nom temporaire tiré par mktemp et non figé à « $memoire.tmp » : le volume
+  # agent-claude est partagé entre projets, deux containers peuvent donc
+  # provisionner en même temps et se disputer le même fichier intermédiaire.
+  # Dans le MÊME répertoire, pour que le mv reste un renommage sur un seul
+  # système de fichiers, donc atomique. L'écriture ne vise jamais $memoire, et
+  # un échec laisse l'original intact — le mv n'a alors pas lieu.
+  if temporaire="$(mktemp "$memoire.XXXXXX")"; then
+    if { printf '%s\n\n' "$import"; cat "$memoire"; } > "$temporaire"; then
+      mv "$temporaire" "$memoire"
+    else
+      rm -f "$temporaire"
+    fi
+  fi
 fi
 
 exit 0

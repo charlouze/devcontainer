@@ -40,9 +40,13 @@ gh auth setup-git || warn "gh auth setup-git a échoué : git n'est pas recâbl�
 # utilisable, seule l'identité manque. La renseigner est ce qui rend le premier
 # commit possible — sans user.email, git refuse de commiter.
 if utilisateur="$(gh api user 2>/dev/null)" && [ -n "$utilisateur" ]; then
-  login="$(printf '%s' "$utilisateur" | jq -r '.login')"
-  identifiant="$(printf '%s' "$utilisateur" | jq -r '.id')"
-  nom="$(printf '%s' "$utilisateur" | jq -r '.name // .login')"
+  # `// empty` et pas seulement `-r` : sur un champ à `null`, `jq -r` imprime la
+  # CHAÎNE « null », qui est non vide et passerait le garde ci-dessous. On
+  # poserait alors une adresse `null+null@users.noreply.github.com` au lieu de
+  # l'avertissement promis. `// empty` rend du vide, donc le garde voit le trou.
+  login="$(printf '%s' "$utilisateur" | jq -r '.login // empty')"
+  identifiant="$(printf '%s' "$utilisateur" | jq -r '.id // empty')"
+  nom="$(printf '%s' "$utilisateur" | jq -r '.name // .login // empty')"
 
   # jq peut échouer ou renvoyer du vide sur une réponse malformée : poser une
   # identité incomplète ferait échouer git bien plus tard, loin de la cause,

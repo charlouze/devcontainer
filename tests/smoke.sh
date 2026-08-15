@@ -221,6 +221,20 @@ check "l'import atterrit dans le vrai CLAUDE_CONFIG_DIR" in_base '
   /usr/local/share/devcontainer/lib/claude-conventions.sh
   grep -qxF "@/etc/devcontainer/conventions.md" "$CLAUDE_CONFIG_DIR/CLAUDE.md"'
 
+# Le point de montage du volume agent-gh, vérifié par exécution et non par
+# lecture du Dockerfile : il doit être inscriptible par `dev`, et gh doit
+# réellement résoudre sa configuration là. Une dérive du chemin ou un montage
+# resté root:root livrerait un volume auquel gh n'écrit jamais — la connexion
+# mourrait à chaque recréation sans qu'aucun message ne le signale.
+check "dev peut écrire dans le point de montage de gh" \
+  in_base 'test -w /home/dev/.config/gh'
+
+# `gh config set` n'exige aucune authentification : le test tient donc en CI,
+# sans jeton, et prouve le seul point qui compte ici — où gh écrit.
+check "gh écrit sa configuration dans /home/dev/.config/gh" in_base '
+  gh config set git_protocol https
+  test -n "$(find /home/dev/.config/gh -type f)"'
+
 check "identity.sh réussit sous dev"              in_base '/usr/local/share/devcontainer/lib/identity.sh'
 check "identity.sh avertit sous root" \
   bash -c 'docker run --rm -u root '"$BASE_IMAGE"' \
