@@ -14,13 +14,27 @@ const MAX_RULES_COUNT = 100;
 
 /** Interdits sur les commandes Bash. */
 const BASH_RULES = [
+  // Les deux règles de push partagent la même borne [^\n;&|]* entre `push` et
+  // ce qui suit : sans elle, une commande enchaînée par && ou ; pourrait
+  // faire correspondre un mot de la commande suivante, qui n'a rien à voir
+  // avec ce push-là (`git push origin ma-branche && echo main` doit passer).
   [
-    /\bgit\s+push\b[^\n;&|]*(?<=[\s:]|refs\/heads\/)(main|master)(?=\s|$)/,
+    // Référence entière, pas une sous-chaîne : elle doit être précédée d'un
+    // espace, de « : », d'un guillemet, de « + » (refspec forcé) ou de
+    // refs/heads/, et suivie d'un espace, d'un guillemet, de la fin de la
+    // commande ou d'un métacaractère shell (; & | )). Sans ce dernier volet,
+    // un point-virgule, un && ou une parenthèse fermante en toute fin de
+    // ligne désarme la règle alors que `git push origin main; echo fait` est
+    // un one-liner ordinaire, pas une construction adverse.
+    /\bgit\s+push\b[^\n;&|]*(?<=[\s:+'"]|refs\/heads\/)(main|master)(?=[\s;&|)'"]|$)/,
     'Pousser sur main est bloqué : ouvre une branche et une pull request. ' +
       "L'intégration est un geste humain, dans l'interface GitHub.",
   ],
   [
-    /\bgit\s+push\b[^\n;&|]*\s(--all|--mirror|--tags|--delete|-d)\b/,
+    // --delete doit précéder -d dans l'alternation : elle rend la première
+    // branche qui matche, et l'ordre inverse ferait consommer -d au début de
+    // --delete, laissant un \b qui échoue juste après.
+    /\bgit\s+push\b[^\n;&|]*\s(--all|--mirror|--tags|--prune|--delete|-d)\b/,
     'Cette forme de git push publie plus que la branche courante — toutes les ' +
       'branches, tous les tags — ou supprime une référence distante. Pousse ' +
       'une branche nommée.',
@@ -44,7 +58,16 @@ const BASH_RULES = [
     'Publier un package est hors du périmètre de ces projets.',
   ],
   [
-    /\bgh\s+(?!(pr\s+(create|edit|view|list|diff|status|checkout|comment|ready)|issue\s+(view|list|create|edit|comment)|repo\s+view|auth\s+status|browse|search|--version|--help)\b)/,
+    // Liste blanche par lookahead négatif, pas liste noire : tout ce qui n'est
+    // pas explicitement nommé est refusé, y compris `gh api` et les
+    // sous-commandes que gh ajoutera demain. Le \s* à l'intérieur du
+    // lookahead absorbe l'espace qui reste quel que soit ce que \s+ a déjà
+    // consommé avant lui : sans lui, un espace double ou une tabulation après
+    // gh fait reculer \s+ d'un cran par backtracking, le lookahead se
+    // retrouve à tester une chaîne qui commence par un espace, aucune
+    // alternative ne matche alors, la négation réussit à tort et une
+    // commande pourtant permise se retrouve bloquée.
+    /\bgh\s+(?!\s*(pr\s+(create|edit|view|list|diff|status|checkout|comment|ready)|issue\s+(view|list|create|edit|comment)|repo\s+view|auth\s+status|browse|search|--version|--help)\b)/,
     'Seules la création, la modification et la lecture de pull requests sont ' +
       'ouvertes à gh. Le merge, la fermeture, `gh api` et le reste sont refusés ' +
       "par défaut — l'intégration est un geste humain.",

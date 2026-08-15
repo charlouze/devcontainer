@@ -34,11 +34,36 @@ test('une branche dont le nom commence par main passe', () => {
   assert.strictEqual(evaluate(bash('git push origin main-de-fer'), null), null);
 });
 
+// Un point-virgule, un && ou une parenthèse fermante en fin de ligne ne sont
+// pas des constructions adverses : `git push origin main; echo fait` est un
+// one-liner ordinaire, et un refspec forcé (+main) ou entre guillemets reste
+// une référence entière à main.
+test('git push sur main reste bloqué entouré de métacaractères shell ou de guillemets', () => {
+  for (const commande of [
+    'git push origin main; echo ok',
+    'git push origin main&& echo ok',
+    'git push origin main|cat',
+    '(git push origin main)',
+    'git push origin +main',
+    "git push origin 'main'",
+  ]) {
+    assert.ok(evaluate(bash(commande), null), commande);
+  }
+});
+
+// La borne à une seule commande [^\n;&|]* est ce qui empêche ce test de
+// devenir un faux positif : sans elle, le « main » de la commande enchaînée
+// par && serait pris pour la cible de ce push-là.
+test('un git push enchaîné par && ne se fait pas bloquer par un main plus loin dans la commande', () => {
+  assert.strictEqual(evaluate(bash('git push origin ma-branche && echo main'), null), null);
+});
+
 test('les formes qui publient plus que la branche sont bloquées', () => {
   for (const commande of [
     'git push --all origin',
     'git push --mirror',
     'git push --tags origin',
+    'git push --prune origin',
     'git push --delete origin vieille-branche',
   ]) {
     assert.ok(evaluate(bash(commande), null), commande);
@@ -49,6 +74,18 @@ test('gh ouvre et modifie des pull requests', () => {
   assert.strictEqual(evaluate(bash('gh pr create --title x --body y'), null), null);
   assert.strictEqual(evaluate(bash('gh pr edit 12 --body z'), null), null);
   assert.strictEqual(evaluate(bash('gh pr view 12'), null), null);
+});
+
+// \s+ est backtrackable : sur un espace double, une première tentative
+// consomme les deux espaces, échoue devant le lookahead, puis le moteur
+// recule d'un cran et retente avec un seul. Sans le \s* à l'intérieur du lookahead,
+// cette deuxième tentative se retrouve à tester une chaîne qui commence par
+// un espace, aucune alternative ne matche, la négation réussit à tort et une
+// commande pourtant permise se retrouve bloquée — avec un message qui
+// prétendrait à tort qu'elle n'est pas whitelistée.
+test('gh accepte plusieurs espaces ou une tabulation après gh', () => {
+  assert.strictEqual(evaluate(bash('gh  pr create --title x'), null), null);
+  assert.strictEqual(evaluate(bash('gh \tpr create'), null), null);
 });
 
 // Le refus par défaut est la propriété qui compte : une liste noire laisserait
