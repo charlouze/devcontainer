@@ -94,3 +94,6 @@ rappelle que la prochaine ouverture reconstruira le container.
 Et dès qu'une image a été rafraîchie au §1, dis qu'il faut **recréer** le
 container pour en profiter : un `pull` seul ne change rien, celui qui tourne
 reste sur l'image avec laquelle il a été créé.
+
+Enchaîne sur `references/github.md` : le montage `agent-gh` ne sert à rien tant
+que la connexion `gh` n'a pas été faite une fois dans le container.

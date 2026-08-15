@@ -38,6 +38,11 @@ par défaut, appliqué par élimination à tout dépôt qui n'a matché aucune d
 trois lignes précédentes — donc qui porte l'un des deux manifestes et n'a pas
 de `.devcontainer/`.
 
+Quel que soit le mode, `references/github.md` décrit l'étape credentials : le
+jeton à créer, la connexion à faire une fois dans le container, et la ruleset à
+tenter depuis le poste. Elle est à traiter à la fin, une fois le
+`devcontainer.json` écrit.
+
 Annonce le mode retenu et ce qui l'a déclenché avant d'agir. Si deux cas
 semblent correspondre, demande — c'est le signe d'un dépôt à moitié migré, et se
 tromper de mode y ferait perdre du travail.
@@ -113,7 +118,11 @@ si tu en violes un, la faute se verra plus tard et coûtera plus cher.
   `portsAttributes`.
 
 Termine en rappelant à l'humain ce que le garde-fou **ne** protège **pas** : le
-jeton d'authentification de l'agent est lisible depuis la session, l'agent peut
-commiter localement et modifier n'importe quel fichier du workspace (seule la
-publication est bloquée), le réseau sortant n'est pas filtré, et les règles
-projet — étant dans le workspace — sont supprimables.
+jeton d'authentification de l'agent est lisible depuis la session, et celui de
+GitHub aussi ; l'agent peut commiter et modifier n'importe quel fichier du
+workspace ; le réseau sortant n'est pas filtré ; les règles projet — étant dans
+le workspace — sont supprimables. Et surtout : **`main` et le merge ne sont
+protégés que par la consigne**. Le garde-fou refuse `git push origin main` et
+`gh pr merge`, mais le jeton présent dans la session permettrait de passer par
+l'API. Les seules garanties structurelles sont la portée du PAT et les
+permissions qu'il n'a pas.

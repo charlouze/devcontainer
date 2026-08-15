@@ -116,9 +116,12 @@ Si le dépôt n'a pas de `mise.toml`, crée-le avec la seule section `[tasks.set
 Repasse la liste de contrôle finale de `SKILL.md`, montre les deux fichiers
 écrits, et indique la suite : ouvrir le dépôt dans le dev container, puis `yolo`.
 
+Enchaîne sur `references/github.md` : sans la connexion décrite là, le container
+ne peut ni pousser ni ouvrir de PR.
+
 Dis-lui aussi que **le workspace vivra dans un volume Docker et pas sur son
-disque**, et surtout qu'il **ne survit pas à la recréation du container** :
-JetBrains re-clone depuis le distant dans un volume de sources neuf, donc ce qui
-n'a pas été poussé disparaît — commits locaux compris, et sur un rebuild réussi,
-pas seulement sur un accident. Le garde-fou bloque `git push`, donc c'est
-l'humain qui publie, et rien ne le fait à sa place.
+disque**, et qu'il **ne survit pas à la recréation du container** : JetBrains
+re-clone depuis le distant dans un volume de sources neuf, donc ce qui n'a pas
+été poussé disparaît — commits locaux compris, et sur un rebuild réussi, pas
+seulement sur un accident. Pousser une branche est désormais possible depuis le
+container, et c'est la seule chose qui met le travail à l'abri.
