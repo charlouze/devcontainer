@@ -24,10 +24,13 @@
   },
 
   // Les volumes `agent-*` sont volontairement partagés entre projets : login et
-  // plugins une seule fois, caches content-addressed où le partage est sûr par
-  // construction. Les deux autres sont préfixés par le projet — deux containers
-  // ouverts en même temps ne doivent se disputer ni le backend JetBrains ni
-  // l'historique de shell.
+  // plugins une seule fois, paquets et navigateurs téléchargés une seule fois.
+  // Le partage n'est sûr par construction que pour le store pnpm, qui est
+  // content-addressed ; le cache Playwright, lui, est compté par références et
+  // se vide d'un projet à l'autre — c'est l'image qui neutralise ce ramassage,
+  // pas ce fichier. Les deux derniers volumes sont préfixés par le projet — deux
+  // containers ouverts en même temps ne doivent se disputer ni le backend
+  // JetBrains ni l'historique de shell.
   //
   // `agent-gh` porte la connexion GitHub. Le montage vise l'emplacement par
   // défaut de gh, ce qui évite toute variable d'environnement — donc tout

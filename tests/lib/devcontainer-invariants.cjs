@@ -17,8 +17,10 @@ const POST_CREATE = '/usr/local/share/devcontainer/post-create.sh';
 const CAPS_AUTORISEES = ['CHOWN', 'FOWNER', 'DAC_OVERRIDE', 'SETUID', 'SETGID'];
 const OPTIONS_AUTORISEES = ['--security-opt', '--cap-drop', '--cap-add'];
 
-// Cibles dont la source est imposée : le login et les caches content-addressed
-// sont mutualisés entre projets, le partage y étant sûr par construction.
+// Cibles dont la source est imposée : le login et les caches sont mutualisés
+// entre projets. Le partage n'est sûr par construction que pour le store pnpm ;
+// le cache Playwright, compté par références, ne l'est que parce que l'image
+// désactive son ramassage (cf. tests/unit/image-config-dir.test.cjs).
 const MONTAGES_PARTAGES = {
   '/home/dev/.claude': 'agent-claude',
   '/home/dev/.config/gh': 'agent-gh',

@@ -176,6 +176,30 @@ accident. Si un container reconstruit repart sur un onboarding vierge, regarder
 `~/.claude/backups/` avant de se reconnecter : Claude Code y tient des copies
 `.claude.json.backup.*`, et y met en quarantaine ce qu'il n'a pas su relire.
 
+**Le cache Playwright est partagé entre projets, et l'image y désactive le
+ramassage automatique des navigateurs.** Le volume `agent-playwright` est monté
+sur `/home/dev/.cache/ms-playwright` : un navigateur téléchargé par un projet
+sert à tous. Mais ce cache n'est pas content-addressed comme le store pnpm, il
+est **compté par références** — chaque `playwright install` y écrit, dans
+`.links/`, le chemin absolu du paquet `playwright-core` qui installe, puis
+supprime tout navigateur qu'aucun de ces liens ne réclame plus. Or d'un
+container à l'autre, le chemin du projet voisin n'existe pas : son lien est
+déclaré cassé et ses navigateurs partent avec. Chaque provisionnement vidait
+ainsi le cache de tous les autres projets, qui retéléchargeaient au test
+suivant. L'image pose désormais `PLAYWRIGHT_SKIP_BROWSER_GC=1`.
+
+La contrepartie est assumée : **le volume ne se purge plus jamais tout seul**.
+Une version de Playwright abandonnée y laisse ses navigateurs, de l'ordre de
+500 Mo par version avec chromium et webkit. Pour le remettre à plat, depuis
+n'importe quel container :
+
+```bash
+pnpm exec playwright uninstall --all
+```
+
+La commande ignore délibérément la variable ; le `setup` de chaque projet
+retéléchargera ce dont il a besoin.
+
 ## Recevoir une nouvelle version
 
 Le template épingle le tag flottant `:1`, à dessein : l'invariant `image-tag`

@@ -321,6 +321,53 @@ if [ -n "$WEB_IMAGE" ]; then
         mountpoint -q /home/dev/.cache/pnpm-store &&
         mountpoint -q /home/dev/.cache/ms-playwright"'
   docker volume rm "$A" "$B" "$C" >/dev/null 2>&1 || true
+
+  # Le volume `agent-playwright` est partagé entre projets, or le cache de
+  # Playwright est compté par références et non content-addressed : chaque
+  # `playwright install` y écrit le chemin absolu du paquet playwright-core qui
+  # installe, puis supprime tout navigateur qu'aucun lien encore résolvable ne
+  # réclame. D'un container à l'autre le chemin du projet voisin n'existe pas,
+  # donc son lien est déclaré cassé et ses navigateurs partent avec.
+  # PLAYWRIGHT_SKIP_BROWSER_GC coupe ce ramassage.
+  #
+  # Vérifié par le comportement et non par la présence de la variable : elle
+  # n'est pas documentée par Playwright, et le jour où elle cesserait d'être
+  # honorée la panne serait silencieuse — des navigateurs qui disparaissent
+  # ressemblent à un cache froid, pas à une régression.
+  #
+  # Scénario : deux projets, deux versions de Playwright, le même volume. Le
+  # chemin du premier est déplacé avant l'installation du second, ce qui
+  # reproduit dans un seul container ce que sont deux containers l'un pour
+  # l'autre. `ffmpeg` plutôt qu'un navigateur : même chemin de code de ramassage,
+  # 1,3 Mio au lieu de 500.
+  cache_playwright_partage() {
+    local vol="smoke-pw-gc-$$" code
+    docker run --rm -i -u dev -v "$vol":/home/dev/.cache/ms-playwright "$WEB_IMAGE" bash -l <<'EOS'
+set -e
+cache=/home/dev/.cache/ms-playwright
+pose() {
+  mkdir -p "$1" && cd "$1"
+  printf '{"name":"p","version":"0.0.0","dependencies":{"playwright-core":"%s"}}' "$2" > package.json
+  pnpm install --silent
+  node node_modules/playwright-core/cli.js install ffmpeg
+}
+pose /tmp/projet-a 1.54.0
+apres_a=$(ls "$cache")
+mv /tmp/projet-a /tmp/projet-a-invisible
+pose /tmp/projet-b 1.49.0
+
+for entree in $apres_a; do
+  [ -e "$cache/$entree" ] || { echo "$entree a disparu du cache"; exit 1; }
+done
+# Les deux versions demandent bien deux révisions distinctes : sans cela le
+# scénario ne prouverait rien.
+[ "$(ls "$cache" | grep -c '^ffmpeg-')" -ge 2 ]
+EOS
+    code=$?
+    docker volume rm "$vol" >/dev/null 2>&1 || true
+    return $code
+  }
+  check "un projet ne vide plus le cache Playwright des autres" cache_playwright_partage
 fi
 
 printf '\n'
