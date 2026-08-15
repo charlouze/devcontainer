@@ -100,9 +100,9 @@ si tu en violes un, la faute se verra plus tard et coûtera plus cher.
   `--cap-drop` et `--cap-add`. Le parser d'IntelliJ ne connaît qu'un
   sous-ensemble des options `docker run` et échoue sur les autres. Les plafonds
   CPU/RAM se règlent dans `%UserProfile%\.wslconfig`.
-- `volumes` — les cinq montages sont là : `agent-claude`, `agent-pnpm-store` et
-  `agent-playwright` partagés entre projets, `<slug>-cache` et `<slug>-history`
-  propres au projet.
+- `volumes` — les six montages sont là : `agent-claude`, `agent-gh`,
+  `agent-pnpm-store` et `agent-playwright` partagés entre projets,
+  `<slug>-cache` et `<slug>-history` propres au projet.
 - `pas-de-socket-docker` — aucun montage `type=bind`, en particulier pas le
   socket Docker : ce serait une évasion en une commande.
 - `pas-de-variable-garde-fou` — aucune variable d'environnement ne prétend

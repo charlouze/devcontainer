@@ -22,6 +22,7 @@ const conforme = () =>
       containerEnv: { GCLOUD_PROJECT: 'demo-dev' },
       mounts: [
         'source=agent-claude,target=/home/dev/.claude,type=volume',
+        'source=agent-gh,target=/home/dev/.config/gh,type=volume',
         'source=demo-cache,target=/home/dev/.cache,type=volume',
         'source=agent-pnpm-store,target=/home/dev/.cache/pnpm-store,type=volume',
         'source=agent-playwright,target=/home/dev/.cache/ms-playwright,type=volume',

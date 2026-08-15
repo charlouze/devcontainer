@@ -28,8 +28,13 @@
   // construction. Les deux autres sont préfixés par le projet — deux containers
   // ouverts en même temps ne doivent se disputer ni le backend JetBrains ni
   // l'historique de shell.
+  //
+  // `agent-gh` porte la connexion GitHub. Le montage vise l'emplacement par
+  // défaut de gh, ce qui évite toute variable d'environnement — donc tout
+  // réglage qu'un IDE pourrait cesser d'honorer en silence.
   "mounts": [
     "source=agent-claude,target=/home/dev/.claude,type=volume",
+    "source=agent-gh,target=/home/dev/.config/gh,type=volume",
     "source=vieux-projet-cache,target=/home/dev/.cache,type=volume",
     "source=agent-pnpm-store,target=/home/dev/.cache/pnpm-store,type=volume",
     "source=agent-playwright,target=/home/dev/.cache/ms-playwright,type=volume",
