@@ -12,6 +12,12 @@ borné par construction — pas de credential cloud, pas de socket Docker, uid
 non-root sans chemin vers root, et un garde-fou `PreToolUse` déposé root-only que
 la session ne peut ni éditer ni désactiver.
 
+Une exception, assumée et bornée : **un jeton GitHub entre dans le container**,
+pour que l'agent puisse pousser une branche et ouvrir une pull request. Ce qu'il
+permet n'est plus borné par construction mais par la portée du jeton, et ce qu'il
+ne doit pas faire — pousser sur `main`, merger — l'est par la consigne. La
+section « Ce que le garde-fou ne protège pas » le dit sans détour.
+
 ## Les deux images
 
 | Image | Contenu |
@@ -85,6 +91,39 @@ Tolérance aux erreurs : fichier absent, illisible, supérieur à 64 Ko, JSON
 invalide, plus de 100 règles, ou regex non compilable → avertissement sur stderr
 et on continue avec le socle. Ni fail-open silencieux, ni blocage total sur une
 erreur de configuration.
+
+## Pousser et ouvrir des PR
+
+Le container peut pousser une branche et ouvrir une pull request. Il ne merge
+pas : l'intégration se fait dans l'interface GitHub.
+
+Le jeton est un **PAT fine-grained** à dépôts sélectionnés, avec `Contents` et
+`Pull requests` en écriture, `Metadata` en lecture. **Ni `Administration`, ni
+`Workflows`** — sans cette dernière, GitHub refuse lui-même tout push qui touche
+`.github/workflows/`, ce qui est la seule barrière vraiment structurelle du
+dispositif.
+
+Il n'entre ni par un fichier de l'hôte, ni par une variable d'environnement. La
+connexion est un geste humain, fait une fois, dans un terminal du container :
+
+```bash
+gh auth login --with-token
+```
+
+puis coller le jeton et Ctrl-D. Il passe par stdin, donc il n'entre pas dans
+l'historique de shell — qui est persistant ici, et que le garde-fou traite déjà
+comme un secret.
+
+Le volume `agent-gh` est monté sur `/home/dev/.config/gh`, l'emplacement par
+défaut de `gh` : la connexion survit aux recréations, et vaut pour tous les
+projets. Contrairement à `CLAUDE_CONFIG_DIR`, aucune variable n'est nécessaire —
+il n'y a rien à détourner, donc rien qu'un IDE puisse ignorer en silence. Le
+provisionnement recâble ensuite git sur `gh` (`gh auth setup-git`) et pose
+l'identité de commit depuis `gh api user`.
+
+Sans connexion, le provisionnement le dit et continue : le container est alors
+celui d'avant, sans capacité de push. C'est aussi ce qui arrive quand le PAT
+expire.
 
 ## Ce qui persiste d'une recréation à l'autre
 
@@ -173,14 +212,20 @@ Ne pose le tag qu'une fois `.claude-plugin/marketplace.json` présent sur
 `main` avec cette version : le plugin est déclaré dans `plugins.d`, donc
 chaque container tente de l'installer au provisionnement, et tant que la
 marketplace publiée ne le contient pas, `install-plugins.sh` affiche un
-avertissement à chaque fois. Rare en pratique puisque `git push origin main
---tags` ci-dessous pousse les deux ensemble, mais l'ordre compte si le push
-est fait en deux temps.
+avertissement à chaque fois.
+
+Le dépôt s'applique ses propres règles : branche, pull request, merge dans
+l'interface. Le tag ne se pose qu'ensuite, sur `main` à jour — l'ordre compte,
+`main` devant porter la marketplace à la bonne version avant que le tag
+n'existe.
 
 ```bash
-git tag v1.2.0
-git push origin main --tags
+git checkout main && git pull
+git tag v1.3.0 && git push origin v1.3.0
 ```
+
+Un tag n'est pas une branche : une ruleset qui cible la branche par défaut ne
+s'oppose pas à son push.
 
 Le workflow construit les deux images, rejoue les tests unitaires **et le smoke
 test contre les images construites**, et ne publie qu'ensuite. Un échec n'atteint
@@ -196,8 +241,18 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
 - **Le jeton d'authentification de l'agent est lisible depuis la session.** Une
   règle qui prétendrait en interdire la lecture serait décorative.
 - **L'agent peut commiter localement et modifier n'importe quel fichier du
-  workspace.** Seule la *publication* est bloquée : `git push`, `firebase deploy`,
-  `npm publish`, les commandes `gh` qui écrivent, tout `gcloud`.
+  workspace.** Il peut aussi pousser une branche et ouvrir une PR. Restent
+  bloqués : `firebase deploy`, `npm publish`, tout `gcloud`, et les commandes
+  `gh` hors création/modification/lecture de PR.
+- **`main` et le merge ne sont protégés que par la consigne.** Le garde-fou
+  refuse `git push origin main` et `gh pr merge`, mais le jeton GitHub est
+  lisible depuis la session et l'API est joignable : un appel direct passerait.
+  C'est un choix, pas un oubli — les garanties dures sont la portée du PAT et les
+  permissions qu'il n'a pas. Une ruleset sur `main` referme le premier point là
+  où GitHub l'accepte ; l'onboarding la tente.
+- **Le volume `agent-gh` est partagé entre projets**, donc tout container peut
+  pousser sur tous les dépôts que le PAT couvre. Même portée que `.claude.json`,
+  déjà partagé.
 - **L'accès réseau sortant n'est pas filtré.**
 - **Les règles projet sont supprimables**, puisqu'elles vivent dans le workspace.
   D'où le fait qu'elles ne soient qu'additives.
@@ -210,9 +265,9 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
   poussé disparaît, **commits locaux compris, et sur un rebuild parfaitement
   réussi** — pas seulement sur un accident. Les volumes ainsi laissés orphelins,
   un `docker volume prune` ou une remise à zéro de Docker Desktop achèvent le
-  reste, et aucune sauvegarde de l'hôte ne les couvre. La fenêtre est d'autant
-  plus longue que le garde-fou bloque `git push` : c'est l'humain qui publie, et
-  rien ne le fait à sa place.
+  reste, et aucune sauvegarde de l'hôte ne les couvre. La fenêtre s'est refermée
+  depuis que le container peut pousser : c'est maintenant à portée de l'agent, et
+  une branche poussée est la seule copie qui survit au volume.
 - **Le volume de login est partagé entre projets, donc `.claude.json` aussi.**
   Le container d'un projet peut lire la configuration MCP d'un autre —
   `mcpServers` porte couramment des clés d'API tierces dans ses blocs `env` —
