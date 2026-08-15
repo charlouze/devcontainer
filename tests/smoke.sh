@@ -57,12 +57,20 @@ guard_code() {
 blocks()  { [ "$(guard_code "$1" "${@:2}")" = "2" ]; }
 allows()  { [ "$(guard_code "$1" "${@:2}")" = "0" ]; }
 
-PUSH='{"tool_name":"Bash","tool_input":{"command":"git push"}}'
+PUSH='{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}'
+PUSH_BRANCHE='{"tool_name":"Bash","tool_input":{"command":"git push -u origin ma-branche"}}'
+PUSH_ENCHAINE='{"tool_name":"Bash","tool_input":{"command":"git push origin main; echo ok"}}'
+GH_PR='{"tool_name":"Bash","tool_input":{"command":"gh pr create --title x --body y"}}'
+GH_MERGE='{"tool_name":"Bash","tool_input":{"command":"gh pr merge 12"}}'
 BUILD='{"tool_name":"Bash","tool_input":{"command":"pnpm nx build app"}}'
 DOTENV='{"tool_name":"Read","tool_input":{"file_path":"/w/.env"}}'
 
 section "Garde-fou"
-check  "git push est bloqué"                      blocks "$PUSH"
+check  "git push sur main est bloqué"             blocks "$PUSH"
+check  "git push sur une branche passe"           allows "$PUSH_BRANCHE"
+check  "git push sur main enchaîné par ; est bloqué" blocks "$PUSH_ENCHAINE"
+check  "gh pr create passe"                       allows "$GH_PR"
+check  "gh pr merge est bloqué"                   blocks "$GH_MERGE"
 check  "une commande anodine passe"               allows "$BUILD"
 check  "la lecture d'un .env est bloquée"         blocks "$DOTENV"
 check  "un payload illisible ne bloque pas"       allows 'pas du json'
@@ -98,6 +106,7 @@ check  "dev n'est pas root"                      test "$(in_base 'id -u')" != 0
 refute "sudo est neutralisé"                     in_base 'sudo -n true'
 check  "mise est sur le PATH"                    in_base 'command -v mise'
 check  "claude est sur le PATH"                  in_base 'command -v claude'
+check  "gh est sur le PATH"                      in_base 'command -v gh'
 check  "l'alias yolo existe"                     in_base_i 'alias yolo'
 check  "mise installe un outil à chaud sous dev" in_base 'mise install node@24 && mise exec node@24 -- node --version'
 
@@ -181,10 +190,62 @@ check "claude-settings préserve les réglages existants" in_base '
   [ "$(jq -r .theme ~/.claude/settings.json)" = dark ] &&
   [ "$(jq -r .skipDangerousModePermissionPrompt ~/.claude/settings.json)" = true ]'
 
+# Idempotence sur le nombre d'occurrences, pas sur « au moins une » : ce script
+# tourne à chaque recréation sur un volume qui persiste, un ajout aveugle
+# empilerait la même ligne indéfiniment.
+check "l'import des conventions est ajouté une seule fois" in_base '
+  export CLAUDE_CONFIG_DIR=/tmp/cfg-conv
+  /usr/local/share/devcontainer/lib/claude-conventions.sh
+  /usr/local/share/devcontainer/lib/claude-conventions.sh
+  [ "$(grep -cxF "@/etc/devcontainer/conventions.md" $CLAUDE_CONFIG_DIR/CLAUDE.md)" = 1 ]'
+
+# Le volume est partagé : un CLAUDE.md écrit à la main par l'humain ne doit pas
+# disparaître au provisionnement suivant.
+check "l'import ne détruit pas la mémoire existante" in_base '
+  export CLAUDE_CONFIG_DIR=/tmp/cfg-conv2
+  mkdir -p $CLAUDE_CONFIG_DIR
+  echo "ma memoire a moi" > $CLAUDE_CONFIG_DIR/CLAUDE.md
+  /usr/local/share/devcontainer/lib/claude-conventions.sh
+  grep -q "ma memoire a moi" $CLAUDE_CONFIG_DIR/CLAUDE.md &&
+  grep -qxF "@/etc/devcontainer/conventions.md" $CLAUDE_CONFIG_DIR/CLAUDE.md'
+
+check "les conventions sont en lecture seule pour dev" \
+  in_base 'test -r /etc/devcontainer/conventions.md'
+refute "dev ne peut pas réécrire les conventions" \
+  in_base 'echo compromis > /etc/devcontainer/conventions.md'
+
+# Les deux vérifications ci-dessus pointent sur un CLAUDE_CONFIG_DIR de test :
+# elles prouvent que le script marche, pas qu'il écrit là où Claude Code lira
+# vraiment. Celle-ci n'override rien et vise le chemin posé par l'image.
+check "l'import atterrit dans le vrai CLAUDE_CONFIG_DIR" in_base '
+  /usr/local/share/devcontainer/lib/claude-conventions.sh
+  grep -qxF "@/etc/devcontainer/conventions.md" "$CLAUDE_CONFIG_DIR/CLAUDE.md"'
+
+# Le point de montage du volume agent-gh, vérifié par exécution et non par
+# lecture du Dockerfile : il doit être inscriptible par `dev`, et gh doit
+# réellement résoudre sa configuration là. Une dérive du chemin ou un montage
+# resté root:root livrerait un volume auquel gh n'écrit jamais — la connexion
+# mourrait à chaque recréation sans qu'aucun message ne le signale.
+check "dev peut écrire dans le point de montage de gh" \
+  in_base 'test -w /home/dev/.config/gh'
+
+# `gh config set` n'exige aucune authentification : le test tient donc en CI,
+# sans jeton, et prouve le seul point qui compte ici — où gh écrit.
+check "gh écrit sa configuration dans /home/dev/.config/gh" in_base '
+  gh config set git_protocol https
+  test -n "$(find /home/dev/.config/gh -type f)"'
+
 check "identity.sh réussit sous dev"              in_base '/usr/local/share/devcontainer/lib/identity.sh'
 check "identity.sh avertit sous root" \
   bash -c 'docker run --rm -u root '"$BASE_IMAGE"' \
     /usr/local/share/devcontainer/lib/identity.sh 2>&1 | grep -qi root'
+
+# Sans connexion gh — l'état de tout container tant que l'humain ne s'est pas
+# connecté, et de tout container recréé après expiration du jeton. Le
+# provisionnement doit continuer, pas s'arrêter là.
+check "github-auth sans connexion sort en 0 et dit quoi faire" in_base '
+  sortie="$(/usr/local/share/devcontainer/lib/github-auth.sh)" &&
+  printf "%s" "$sortie" | grep -q "gh auth login --with-token"'
 
 check "post-create tolère l'absence de tâche setup" in_base '
   mkdir -p /tmp/vide && cd /tmp/vide
@@ -218,6 +279,7 @@ if [ -n "$WEB_IMAGE" ]; then
   check "node 22 est préinstallé"   matches 'v22.*' "$(in_web 'node --version')"
   check "pnpm est préinstallé"      in_web 'pnpm --version'
   check "java est préinstallé"      in_web 'java -version'
+  check "gh traverse la couche web"   in_web 'command -v gh'
   check "impeccable est déclaré"    in_web 'grep -q impeccable /etc/devcontainer/plugins.d/10-web.txt'
   check "le garde-fou survit à la couche web" \
     in_web '/usr/local/lib/claude-guard/node --version'

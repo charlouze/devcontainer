@@ -49,3 +49,52 @@ test('la valeur est la cible du montage de login partagé', () => {
     `${valeur} n'est pas la cible du montage agent-claude`
   );
 });
+
+// Le nom de l'utilisateur est un ARG : les chemins du Dockerfile s'écrivent
+// `/home/${USERNAME}/…` là où les invariants les portent développés. On
+// substitue avant de comparer, plutôt que de figer « dev » des deux côtés.
+function repertoiresCrees() {
+  const utilisateur = dockerfile.match(/^ARG USERNAME=(\S+)$/m)[1];
+  // Les continuations de ligne sont repliées d'abord : le mkdir des points de
+  // montage tient sur huit lignes, et c'est l'instruction entière qu'on veut.
+  const instruction = dockerfile
+    .replaceAll('${USERNAME}', utilisateur)
+    .replace(/\\\r?\n\s*/g, ' ')
+    .split(/\r?\n/)
+    .find((ligne) => /^RUN mkdir -p \/home\//.test(ligne));
+  assert.ok(instruction, 'aucun `RUN mkdir -p /home/…` dans le Dockerfile');
+  return { utilisateur, chemins: new Set(instruction.split(/\s+/)) };
+}
+
+// Rien d'autre ne tient ces deux listes ensemble. Un point de montage absent de
+// l'image est créé par Docker en root:root, et `dev` ne peut alors rien y
+// écrire : gh écrirait ailleurs — ou pas du tout — et la connexion mourrait à
+// chaque recréation SANS QUE RIEN NE LE SIGNALE. Une dérive d'un caractère dans
+// le mkdir suffit, d'où ce test plutôt qu'une relecture attentive.
+test('chaque montage partagé sous /home préexiste dans le Dockerfile', () => {
+  const { utilisateur, chemins } = repertoiresCrees();
+  const cibles = Object.keys(MONTAGES_PARTAGES).filter((cible) =>
+    cible.startsWith(`/home/${utilisateur}/`)
+  );
+  assert.ok(cibles.length > 0, 'aucun montage partagé sous /home : la liste a changé de forme');
+
+  for (const cible of cibles) {
+    assert.ok(
+      chemins.has(cible),
+      `${cible} (montage ${MONTAGES_PARTAGES[cible]}) n'est pas créé par le mkdir du Dockerfile`
+    );
+  }
+});
+
+// gh résout sa configuration dans `$XDG_CONFIG_HOME/gh`. L'image fige la
+// variable à sa valeur par défaut pour qu'aucune couche ne puisse la déplacer en
+// silence — auquel cas le volume agent-gh deviendrait inerte exactement comme un
+// CLAUDE_CONFIG_DIR oublié. Le test tient la variable et le montage en accord.
+test('XDG_CONFIG_HOME est le parent du montage gh', () => {
+  const occurrences = dockerfile.match(/^ENV XDG_CONFIG_HOME=(\S+)$/gm) ?? [];
+  assert.strictEqual(occurrences.length, 1, `${occurrences.length} définitions de XDG_CONFIG_HOME`);
+  const valeur = occurrences[0].replace(/^ENV XDG_CONFIG_HOME=/, '');
+
+  const cible = Object.keys(MONTAGES_PARTAGES).find((c) => MONTAGES_PARTAGES[c] === 'agent-gh');
+  assert.strictEqual(`${valeur}/gh`, cible, `${valeur}/gh n'est pas la cible du montage agent-gh`);
+});

@@ -110,5 +110,9 @@ survivra pas aux recréations suivantes** : JetBrains re-clone depuis le distant
 dans un volume de sources neuf, donc ce qui n'a pas été poussé disparaît, sur un
 rebuild réussi comme sur un accident. C'est un changement d'habitude à annoncer
 franchement quand le dépôt travaillait jusque-là sur le disque de l'hôte, où
-rien ne se perdait à reconstruire. Le garde-fou bloque `git push`, donc c'est
-l'humain qui publie, et rien ne le fait à sa place.
+rien ne se perdait à reconstruire. Le garde-fou bloque `git push origin main`,
+pas le push d'une branche : pousser une branche est désormais possible depuis
+le container, et c'est la seule chose qui met le travail à l'abri.
+
+Enchaîne sur `references/github.md` : le montage `agent-gh` ne sert à rien tant
+que la connexion `gh` n'a pas été faite une fois dans le container.

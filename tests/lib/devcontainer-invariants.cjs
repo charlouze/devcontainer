@@ -21,6 +21,7 @@ const OPTIONS_AUTORISEES = ['--security-opt', '--cap-drop', '--cap-add'];
 // sont mutualisés entre projets, le partage y étant sûr par construction.
 const MONTAGES_PARTAGES = {
   '/home/dev/.claude': 'agent-claude',
+  '/home/dev/.config/gh': 'agent-gh',
   '/home/dev/.cache/pnpm-store': 'agent-pnpm-store',
   '/home/dev/.cache/ms-playwright': 'agent-playwright',
 };
@@ -41,7 +42,7 @@ const INVARIANTS = [
     id: 'runargs-parser',
     libelle: 'runArgs ne contient que --security-opt, --cap-drop et --cap-add',
   },
-  { id: 'volumes', libelle: 'les cinq montages attendus, partagés ou préfixés par le projet' },
+  { id: 'volumes', libelle: 'les six montages attendus, partagés ou préfixés par le projet' },
   { id: 'pas-de-socket-docker', libelle: "aucun montage de type bind depuis l'hôte" },
   {
     id: 'pas-de-variable-garde-fou',

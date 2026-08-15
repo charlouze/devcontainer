@@ -33,6 +33,7 @@ RUN mkdir -p /home/${USERNAME}/.claude \
              /home/${USERNAME}/.cache \
              /home/${USERNAME}/.cache/pnpm-store \
              /home/${USERNAME}/.cache/ms-playwright \
+             /home/${USERNAME}/.config/gh \
              /home/${USERNAME}/.history \
              /home/${USERNAME}/.local/bin \
  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
@@ -92,6 +93,23 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN printf '%s\n' "alias yolo='claude --dangerously-skip-permissions'" \
       >> /home/dev/.bashrc
 
+# gh sert à ouvrir et modifier des pull requests depuis la session. En
+# user-level comme le reste de la toolchain : rien de ce que l'agent utilise au
+# quotidien n'a à appartenir à root.
+#
+# Sa configuration vit dans ~/.config/gh, l'emplacement par défaut — c'est ce
+# qui permet au template d'y monter un volume sans poser la moindre variable
+# d'environnement, donc sans rien qu'un IDE puisse ignorer en silence.
+#
+# À une nuance près, d'où la ligne ci-dessous : « par défaut » veut dire
+# `$XDG_CONFIG_HOME/gh`, et gh honore cette variable. Si une couche de l'image ou
+# de l'IDE la posait ailleurs, le volume agent-gh deviendrait inerte aussi
+# silencieusement qu'un CLAUDE_CONFIG_DIR oublié — précisément le mode de panne
+# que l'argument ci-dessus prétend impossible. La valeur est celle que gh
+# prendrait de toute façon : la figer est sans effet et rend la promesse vraie.
+ENV XDG_CONFIG_HOME=/home/dev/.config
+RUN mise use --global --yes gh@latest
+
 USER root
 
 # Provisionnement. Le chmod explicite qui suit n'est pas décoratif : COPY
@@ -100,6 +118,7 @@ USER root
 COPY --chown=root:root --chmod=0555 post-create.sh /usr/local/share/devcontainer/post-create.sh
 COPY --chown=root:root --chmod=0555 lib/           /usr/local/share/devcontainer/lib/
 COPY --chown=root:root --chmod=0444 etc/plugins.d/ /etc/devcontainer/plugins.d/
+COPY --chown=root:root --chmod=0444 etc/conventions.md /etc/devcontainer/conventions.md
 RUN chmod 0755 /usr/local/share/devcontainer \
                /usr/local/share/devcontainer/lib \
                /etc/devcontainer/plugins.d

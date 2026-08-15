@@ -9,8 +9,10 @@ say "Identité";            "$lib/identity.sh"
 say "Toolchain mise";      mise trust --yes && mise install --yes
 say "Store pnpm";          "$lib/configure-pnpm.sh"
 say "Réglages Claude";     "$lib/claude-settings.sh"
+say "Conventions";         "$lib/claude-conventions.sh"
 say "Plugins";             "$lib/install-plugins.sh"
 say "Git";                 git config --global --add safe.directory "$PWD"
+say "GitHub";              "$lib/github-auth.sh"
 
 # Contrat base <-> projet : le projet décrit son provisionnement dans son
 # mise.toml, au même endroit que ses tâches de dev. Un dépôt vide n'a pas encore
@@ -30,7 +32,11 @@ cat <<EOF
 
   Garde-fous actifs dans ce container :
     - aucun credential Google/GCP : le SDK Admin ne peut viser que l'émulateur
-    - git push, firebase deploy, gcloud, publish npm : bloqués par hook
+    - firebase deploy, gcloud, publish npm : bloqués par hook
+    - git push : ouvert sur une branche, bloqué sur main
+    - gh : création et modification de PR seulement, jamais le merge
+      (ces deux dernières tiennent par la consigne autant que par le hook —
+      le jeton présent ici permettrait de les enfreindre)
     - non-root, capabilities Linux réduites, pas de socket Docker
     - règles projet : $( [ -f "$regles" ] && echo "chargées depuis $regles" || echo "aucune" )
 
