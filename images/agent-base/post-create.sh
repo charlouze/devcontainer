@@ -35,6 +35,8 @@ cat <<EOF
     - firebase deploy, gcloud, publish npm : bloqués par hook
     - git push : ouvert sur une branche, bloqué sur main
     - gh : création et modification de PR seulement, jamais le merge
+      (ces deux dernières tiennent par la consigne autant que par le hook —
+      le jeton présent ici permettrait de les enfreindre)
     - non-root, capabilities Linux réduites, pas de socket Docker
     - règles projet : $( [ -f "$regles" ] && echo "chargées depuis $regles" || echo "aucune" )
 

@@ -214,6 +214,13 @@ check "les conventions sont en lecture seule pour dev" \
 refute "dev ne peut pas réécrire les conventions" \
   in_base 'echo compromis > /etc/devcontainer/conventions.md'
 
+# Les deux vérifications ci-dessus pointent sur un CLAUDE_CONFIG_DIR de test :
+# elles prouvent que le script marche, pas qu'il écrit là où Claude Code lira
+# vraiment. Celle-ci n'override rien et vise le chemin posé par l'image.
+check "l'import atterrit dans le vrai CLAUDE_CONFIG_DIR" in_base '
+  /usr/local/share/devcontainer/lib/claude-conventions.sh
+  grep -qxF "@/etc/devcontainer/conventions.md" "$CLAUDE_CONFIG_DIR/CLAUDE.md"'
+
 check "identity.sh réussit sous dev"              in_base '/usr/local/share/devcontainer/lib/identity.sh'
 check "identity.sh avertit sous root" \
   bash -c 'docker run --rm -u root '"$BASE_IMAGE"' \
@@ -223,7 +230,8 @@ check "identity.sh avertit sous root" \
 # connecté, et de tout container recréé après expiration du jeton. Le
 # provisionnement doit continuer, pas s'arrêter là.
 check "github-auth sans connexion sort en 0 et dit quoi faire" in_base '
-  /usr/local/share/devcontainer/lib/github-auth.sh | grep -q "gh auth login --with-token"'
+  sortie="$(/usr/local/share/devcontainer/lib/github-auth.sh)" &&
+  printf "%s" "$sortie" | grep -q "gh auth login --with-token"'
 
 check "post-create tolère l'absence de tâche setup" in_base '
   mkdir -p /tmp/vide && cd /tmp/vide
@@ -257,7 +265,7 @@ if [ -n "$WEB_IMAGE" ]; then
   check "node 22 est préinstallé"   matches 'v22.*' "$(in_web 'node --version')"
   check "pnpm est préinstallé"      in_web 'pnpm --version'
   check "java est préinstallé"      in_web 'java -version'
-  check "gh traverse la couche web"  in_web 'command -v gh'
+  check "gh traverse la couche web"   in_web 'command -v gh'
   check "impeccable est déclaré"    in_web 'grep -q impeccable /etc/devcontainer/plugins.d/10-web.txt'
   check "le garde-fou survit à la couche web" \
     in_web '/usr/local/lib/claude-guard/node --version'

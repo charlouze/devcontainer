@@ -21,7 +21,11 @@ mkdir -p "$config"
 if ! grep -qxF "$import" "$memoire"; then
   # Ajouté en tête : ce fichier est de la mémoire utilisateur, on ne veut pas
   # que l'import se retrouve collé à la fin d'un paragraphe écrit à la main.
-  printf '%s\n\n%s' "$import" "$(cat "$memoire")" > "$memoire.tmp" \
+  #
+  # Forme en flux, pas `"$(cat "$memoire")"` : la substitution de commande
+  # aurait mangé les retours à la ligne finaux du fichier, qui cesserait
+  # d'être un texte POSIX bien formé et romprait un `>>` ultérieur.
+  { printf '%s\n\n' "$import"; cat "$memoire"; } > "$memoire.tmp" \
     && mv "$memoire.tmp" "$memoire"
 fi
 

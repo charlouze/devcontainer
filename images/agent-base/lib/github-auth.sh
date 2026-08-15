@@ -34,7 +34,7 @@ fi
 # outils, et aucune variable d'environnement dans la boucle — l'outil Bash de
 # l'agent n'est ni interactif ni un shell de login, il ne lirait ni
 # /etc/profile.d ni /etc/bash.bashrc.
-gh auth setup-git
+gh auth setup-git || warn "gh auth setup-git a échoué : git n'est pas recâblé sur gh."
 
 # Un seul appel réseau, dont on tolère l'échec : sans réseau, la connexion reste
 # utilisable, seule l'identité manque. La renseigner est ce qui rend le premier
@@ -44,12 +44,19 @@ if utilisateur="$(gh api user 2>/dev/null)" && [ -n "$utilisateur" ]; then
   identifiant="$(printf '%s' "$utilisateur" | jq -r '.id')"
   nom="$(printf '%s' "$utilisateur" | jq -r '.name // .login')"
 
-  # L'adresse noreply du compte, jamais l'adresse publique : elle suffit à ce
-  # que GitHub attribue les commits, sans publier d'adresse personnelle dans
-  # l'historique de tous les dépôts touchés.
-  git config --global user.name "$nom"
-  git config --global user.email "${identifiant}+${login}@users.noreply.github.com"
-  echo "GitHub : connecté comme ${login}"
+  # jq peut échouer ou renvoyer du vide sur une réponse malformée : poser une
+  # identité incomplète ferait échouer git bien plus tard, loin de la cause,
+  # avec « empty ident name » sans rapport apparent avec gh.
+  if [ -n "$login" ] && [ -n "$identifiant" ]; then
+    # L'adresse noreply du compte, jamais l'adresse publique : elle suffit à
+    # ce que GitHub attribue les commits, sans publier d'adresse personnelle
+    # dans l'historique de tous les dépôts touchés.
+    git config --global user.name "$nom"
+    git config --global user.email "${identifiant}+${login}@users.noreply.github.com"
+    echo "GitHub : connecté comme ${login}"
+  else
+    warn "Réponse de l'API inattendue : identité git non posée."
+  fi
 else
   warn "Connexion gh présente, mais l'API est injoignable : identité git non posée."
 fi
