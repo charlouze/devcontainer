@@ -184,10 +184,18 @@ décoratives. Leur place est dans « ce que le garde-fou ne protège pas ».
 ## 6. Les conventions distribuées
 
 Le contenu vit dans l'image, en `/etc/devcontainer/conventions.md`, root-only et
-en 0444. Il porte quatre consignes : pas de mention d'assistant dans les messages
-de commit (`Co-Authored-By`, `Claude-Session`, « Generated with »), des corps de
-PR dont les paragraphes tiennent sur une seule ligne, pas de push sur `main`,
-pas de merge.
+en 0444. Il porte quatre **interdits** : pas de mention d'assistant dans les
+messages de commit (`Co-Authored-By`, `Claude-Session`, « Generated with »), des
+corps de PR dont les paragraphes tiennent sur une seule ligne, pas de push sur
+`main`, pas de merge.
+
+Et une **méthode de travail**, de nature différente et à écrire dans une section
+séparée pour que la différence se voie : l'exécution d'un plan d'implémentation
+se fait en subagents, les tâches indépendantes partant dans le même message
+plutôt que l'une après l'autre. La consigne se contente de **désigner
+`superpowers:subagent-driven-development`** au lieu de redire ses règles : le
+critère d'indépendance y est déjà, et une paraphrase dans un fichier de l'image
+divergerait de la skill sans que personne ne s'en aperçoive.
 
 Le rattachement se fait par une ligne `@/etc/devcontainer/conventions.md` ajoutée
 au `CLAUDE.md` du volume partagé **si elle n'y est pas déjà**. L'ajout est
