@@ -33,6 +33,7 @@ RUN mkdir -p /home/${USERNAME}/.claude \
              /home/${USERNAME}/.cache \
              /home/${USERNAME}/.cache/pnpm-store \
              /home/${USERNAME}/.cache/ms-playwright \
+             /home/${USERNAME}/.config/gh \
              /home/${USERNAME}/.history \
              /home/${USERNAME}/.local/bin \
  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
@@ -91,6 +92,15 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 
 RUN printf '%s\n' "alias yolo='claude --dangerously-skip-permissions'" \
       >> /home/dev/.bashrc
+
+# gh sert à ouvrir et modifier des pull requests depuis la session. En
+# user-level comme le reste de la toolchain : rien de ce que l'agent utilise au
+# quotidien n'a à appartenir à root.
+#
+# Sa configuration vit dans ~/.config/gh, l'emplacement par défaut — c'est ce
+# qui permet au template d'y monter un volume sans poser la moindre variable
+# d'environnement, donc sans rien qu'un IDE puisse ignorer en silence.
+RUN mise use --global --yes gh@latest
 
 USER root
 

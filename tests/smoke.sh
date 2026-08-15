@@ -106,6 +106,7 @@ check  "dev n'est pas root"                      test "$(in_base 'id -u')" != 0
 refute "sudo est neutralisé"                     in_base 'sudo -n true'
 check  "mise est sur le PATH"                    in_base 'command -v mise'
 check  "claude est sur le PATH"                  in_base 'command -v claude'
+check  "gh est sur le PATH"                      in_base 'command -v gh'
 check  "l'alias yolo existe"                     in_base_i 'alias yolo'
 check  "mise installe un outil à chaud sous dev" in_base 'mise install node@24 && mise exec node@24 -- node --version'
 
@@ -194,6 +195,12 @@ check "identity.sh avertit sous root" \
   bash -c 'docker run --rm -u root '"$BASE_IMAGE"' \
     /usr/local/share/devcontainer/lib/identity.sh 2>&1 | grep -qi root'
 
+# Sans connexion gh — l'état de tout container tant que l'humain ne s'est pas
+# connecté, et de tout container recréé après expiration du jeton. Le
+# provisionnement doit continuer, pas s'arrêter là.
+check "github-auth sans connexion sort en 0 et dit quoi faire" in_base '
+  /usr/local/share/devcontainer/lib/github-auth.sh | grep -q "gh auth login --with-token"'
+
 check "post-create tolère l'absence de tâche setup" in_base '
   mkdir -p /tmp/vide && cd /tmp/vide
   mkdir -p /tmp/bin && printf "%s\n" "#!/bin/sh" "exit 0" > /tmp/bin/claude
@@ -226,6 +233,7 @@ if [ -n "$WEB_IMAGE" ]; then
   check "node 22 est préinstallé"   matches 'v22.*' "$(in_web 'node --version')"
   check "pnpm est préinstallé"      in_web 'pnpm --version'
   check "java est préinstallé"      in_web 'java -version'
+  check "gh traverse la couche web"  in_web 'command -v gh'
   check "impeccable est déclaré"    in_web 'grep -q impeccable /etc/devcontainer/plugins.d/10-web.txt'
   check "le garde-fou survit à la couche web" \
     in_web '/usr/local/lib/claude-guard/node --version'
