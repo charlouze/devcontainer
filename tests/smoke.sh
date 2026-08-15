@@ -190,6 +190,30 @@ check "claude-settings préserve les réglages existants" in_base '
   [ "$(jq -r .theme ~/.claude/settings.json)" = dark ] &&
   [ "$(jq -r .skipDangerousModePermissionPrompt ~/.claude/settings.json)" = true ]'
 
+# Idempotence sur le nombre d'occurrences, pas sur « au moins une » : ce script
+# tourne à chaque recréation sur un volume qui persiste, un ajout aveugle
+# empilerait la même ligne indéfiniment.
+check "l'import des conventions est ajouté une seule fois" in_base '
+  export CLAUDE_CONFIG_DIR=/tmp/cfg-conv
+  /usr/local/share/devcontainer/lib/claude-conventions.sh
+  /usr/local/share/devcontainer/lib/claude-conventions.sh
+  [ "$(grep -cxF "@/etc/devcontainer/conventions.md" $CLAUDE_CONFIG_DIR/CLAUDE.md)" = 1 ]'
+
+# Le volume est partagé : un CLAUDE.md écrit à la main par l'humain ne doit pas
+# disparaître au provisionnement suivant.
+check "l'import ne détruit pas la mémoire existante" in_base '
+  export CLAUDE_CONFIG_DIR=/tmp/cfg-conv2
+  mkdir -p $CLAUDE_CONFIG_DIR
+  echo "ma memoire a moi" > $CLAUDE_CONFIG_DIR/CLAUDE.md
+  /usr/local/share/devcontainer/lib/claude-conventions.sh
+  grep -q "ma memoire a moi" $CLAUDE_CONFIG_DIR/CLAUDE.md &&
+  grep -qxF "@/etc/devcontainer/conventions.md" $CLAUDE_CONFIG_DIR/CLAUDE.md'
+
+check "les conventions sont en lecture seule pour dev" \
+  in_base 'test -r /etc/devcontainer/conventions.md'
+refute "dev ne peut pas réécrire les conventions" \
+  in_base 'echo compromis > /etc/devcontainer/conventions.md'
+
 check "identity.sh réussit sous dev"              in_base '/usr/local/share/devcontainer/lib/identity.sh'
 check "identity.sh avertit sous root" \
   bash -c 'docker run --rm -u root '"$BASE_IMAGE"' \

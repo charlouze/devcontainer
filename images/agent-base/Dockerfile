@@ -110,6 +110,7 @@ USER root
 COPY --chown=root:root --chmod=0555 post-create.sh /usr/local/share/devcontainer/post-create.sh
 COPY --chown=root:root --chmod=0555 lib/           /usr/local/share/devcontainer/lib/
 COPY --chown=root:root --chmod=0444 etc/plugins.d/ /etc/devcontainer/plugins.d/
+COPY --chown=root:root --chmod=0444 etc/conventions.md /etc/devcontainer/conventions.md
 RUN chmod 0755 /usr/local/share/devcontainer \
                /usr/local/share/devcontainer/lib \
                /etc/devcontainer/plugins.d

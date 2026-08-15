@@ -9,6 +9,7 @@ say "Identité";            "$lib/identity.sh"
 say "Toolchain mise";      mise trust --yes && mise install --yes
 say "Store pnpm";          "$lib/configure-pnpm.sh"
 say "Réglages Claude";     "$lib/claude-settings.sh"
+say "Conventions";         "$lib/claude-conventions.sh"
 say "Plugins";             "$lib/install-plugins.sh"
 say "Git";                 git config --global --add safe.directory "$PWD"
 say "GitHub";              "$lib/github-auth.sh"
