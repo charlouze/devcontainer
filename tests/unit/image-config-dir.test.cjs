@@ -86,6 +86,36 @@ test('chaque montage partagé sous /home préexiste dans le Dockerfile', () => {
   }
 });
 
+// Le cache Playwright n'est pas content-addressed mais compté par références :
+// chaque `playwright install` écrit dans `<cache>/.links/` le chemin absolu du
+// paquet playwright-core qui installe, puis supprime tout répertoire de
+// navigateur qu'aucun lien encore résolvable ne réclame. D'un container à
+// l'autre, le chemin du projet voisin n'existe pas : son lien est déclaré cassé
+// et ses navigateurs partent avec. Sur un volume partagé, chaque provisionnement
+// vide donc le cache de tous les autres projets. La variable coupe ce ramassage.
+test("l'image de base désactive le ramassage de navigateurs de Playwright", () => {
+  const occurrences = dockerfile.match(/^ENV PLAYWRIGHT_SKIP_BROWSER_GC=(\S+)$/gm) ?? [];
+  assert.strictEqual(
+    occurrences.length,
+    1,
+    `${occurrences.length} définitions de PLAYWRIGHT_SKIP_BROWSER_GC dans le Dockerfile`
+  );
+  assert.strictEqual(occurrences[0], 'ENV PLAYWRIGHT_SKIP_BROWSER_GC=1');
+});
+
+// La variable ne se justifie que par le partage du cache entre projets. Un
+// volume par projet rendrait au contraire le ramassage souhaitable : il purgerait
+// les versions abandonnées du projet lui-même, sans jamais toucher à celles d'un
+// autre. Si le montage cessait d'être partagé, ce test tomberait et rappellerait
+// de retirer la variable plutôt que de la laisser gonfler le volume pour rien.
+test('le cache Playwright est un montage partagé entre projets', () => {
+  assert.strictEqual(
+    MONTAGES_PARTAGES['/home/dev/.cache/ms-playwright'],
+    'agent-playwright',
+    "le cache Playwright n'est plus partagé : PLAYWRIGHT_SKIP_BROWSER_GC n'a plus lieu d'être"
+  );
+});
+
 // gh résout sa configuration dans `$XDG_CONFIG_HOME/gh`. L'image fige la
 // variable à sa valeur par défaut pour qu'aucune couche ne puisse la déplacer en
 // silence — auquel cas le volume agent-gh deviendrait inerte exactement comme un

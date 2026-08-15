@@ -38,6 +38,27 @@ RUN mkdir -p /home/${USERNAME}/.claude \
              /home/${USERNAME}/.local/bin \
  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
 
+# Le cache Playwright, lui, est monté depuis un volume PARTAGÉ entre projets, et
+# son ramassage automatique ne survit pas à ce partage. À chaque `playwright
+# install`, Playwright écrit dans `<cache>/.links/` le chemin absolu du paquet
+# playwright-core qui installe, puis supprime tout navigateur qu'aucun de ces
+# liens ne réclame plus. Ce n'est donc pas un cache content-addressed mais un
+# cache compté par références — et d'un container à l'autre, le chemin du projet
+# voisin n'existe pas : son lien est déclaré cassé, ses navigateurs partent avec.
+# Chaque provisionnement vidait ainsi le cache de tous les autres projets.
+#
+# Contrepartie assumée : le volume ne se purge plus jamais tout seul, une version
+# abandonnée y reste. `pnpm exec playwright uninstall --all` le vide — la
+# commande ignore délibérément cette variable — et les setup suivants
+# retéléchargent.
+#
+# Ici et non dans `containerEnv` du template, pour la raison qui vaut aussi pour
+# CLAUDE_CONFIG_DIR : un ENV d'image ne peut pas être ignoré en silence. La
+# variable n'étant pas documentée par Playwright, c'est le smoke test — qui
+# rejoue la collision entre deux versions — qui tient la promesse, pas sa seule
+# présence ici.
+ENV PLAYWRIGHT_SKIP_BROWSER_GC=1
+
 # /etc/profile réécrit PATH de zéro, ce qui efface ce qui vient des directives
 # ENV. Les terminaux de l'IDE étant des shells de login, il faut réinjecter
 # après coup — sinon les outils sont introuvables dans le terminal alors qu'ils
