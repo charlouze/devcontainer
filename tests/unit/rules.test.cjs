@@ -12,8 +12,58 @@ const {
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command } });
 const read = (file_path) => ({ tool_name: 'Read', tool_input: { file_path } });
 
-test('le socle bloque git push', () => {
-  assert.match(evaluate(bash('git push origin main'), null), /git push/);
+test('git push sur une branche passe', () => {
+  assert.strictEqual(evaluate(bash('git push -u origin ma-branche'), null), null);
+});
+
+test('git push sur main est bloqué sous toutes ses formes', () => {
+  for (const commande of [
+    'git push origin main',
+    'git push origin HEAD:main',
+    'git push --force origin refs/heads/main',
+    'git push origin :master',
+  ]) {
+    assert.ok(evaluate(bash(commande), null), commande);
+  }
+});
+
+// La règle vise une référence entière, pas une sous-chaîne : une branche dont le
+// nom commence par « main » est un cas ordinaire, la bloquer serait un faux
+// positif quotidien.
+test('une branche dont le nom commence par main passe', () => {
+  assert.strictEqual(evaluate(bash('git push origin main-de-fer'), null), null);
+});
+
+test('les formes qui publient plus que la branche sont bloquées', () => {
+  for (const commande of [
+    'git push --all origin',
+    'git push --mirror',
+    'git push --tags origin',
+    'git push --delete origin vieille-branche',
+  ]) {
+    assert.ok(evaluate(bash(commande), null), commande);
+  }
+});
+
+test('gh ouvre et modifie des pull requests', () => {
+  assert.strictEqual(evaluate(bash('gh pr create --title x --body y'), null), null);
+  assert.strictEqual(evaluate(bash('gh pr edit 12 --body z'), null), null);
+  assert.strictEqual(evaluate(bash('gh pr view 12'), null), null);
+});
+
+// Le refus par défaut est la propriété qui compte : une liste noire laisserait
+// passer `gh api`, qui contourne toute énumération, et toute sous-commande que
+// gh ajoutera demain.
+test('gh ne merge pas, et le reste est refusé par défaut', () => {
+  for (const commande of [
+    'gh pr merge 12',
+    'gh pr close 12',
+    'gh api repos/o/d/pulls/1/merge --method PUT',
+    'gh secret set CLE',
+    'gh sous-commande-inconnue',
+  ]) {
+    assert.ok(evaluate(bash(commande), null), commande);
+  }
 });
 
 test('le socle bloque gcloud même en fin de pipeline', () => {
@@ -55,14 +105,14 @@ test('une règle projet ajoute un interdit', () => {
 
 test('les règles projet ne peuvent pas lever un interdit du socle', () => {
   const { rules } = compileProjectRules(JSON.stringify({ bash: [], paths: [] }));
-  assert.ok(evaluate(bash('git push'), rules));
+  assert.ok(evaluate(bash('git push origin main'), rules));
 });
 
 test('un fichier de règles illisible laisse le socle intact et avertit', () => {
   const { rules, warnings } = compileProjectRules('{ ceci nest pas du json');
   assert.strictEqual(rules, null);
   assert.strictEqual(warnings.length, 1);
-  assert.ok(evaluate(bash('git push'), rules));
+  assert.ok(evaluate(bash('git push origin main'), rules));
 });
 
 test('une regex invalide est ignorée avec un avertissement', () => {

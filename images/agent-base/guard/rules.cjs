@@ -15,9 +15,15 @@ const MAX_RULES_COUNT = 100;
 /** Interdits sur les commandes Bash. */
 const BASH_RULES = [
   [
-    /\bgit\s+push\b/,
-    'git push est bloqué dans le sandbox. Commits et branches locales : libre. ' +
-      'Le push est une action humaine — fais relire le diff.',
+    /\bgit\s+push\b[^\n;&|]*(?<=[\s:]|refs\/heads\/)(main|master)(?=\s|$)/,
+    'Pousser sur main est bloqué : ouvre une branche et une pull request. ' +
+      "L'intégration est un geste humain, dans l'interface GitHub.",
+  ],
+  [
+    /\bgit\s+push\b[^\n;&|]*\s(--all|--mirror|--tags|--delete|-d)\b/,
+    'Cette forme de git push publie plus que la branche courante — toutes les ' +
+      'branches, tous les tags — ou supprime une référence distante. Pousse ' +
+      'une branche nommée.',
   ],
   [
     /\bgit\s+(remote\s+(set-url|add|rename)|config\s+(--global|--system))\b/,
@@ -38,8 +44,10 @@ const BASH_RULES = [
     'Publier un package est hors du périmètre de ces projets.',
   ],
   [
-    /\bgh\s+(secret|release|workflow|auth\s+token|repo\s+(delete|edit))/,
-    'Les commandes gh qui écrivent sur GitHub sont bloquées.',
+    /\bgh\s+(?!(pr\s+(create|edit|view|list|diff|status|checkout|comment|ready)|issue\s+(view|list|create|edit|comment)|repo\s+view|auth\s+status|browse|search|--version|--help)\b)/,
+    'Seules la création, la modification et la lecture de pull requests sont ' +
+      'ouvertes à gh. Le merge, la fermeture, `gh api` et le reste sont refusés ' +
+      "par défaut — l'intégration est un geste humain.",
   ],
   [
     /\bcurl\b[^|;&]*\|\s*(sudo\s+)?(ba|z|d)?sh\b/,

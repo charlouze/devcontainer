@@ -57,12 +57,18 @@ guard_code() {
 blocks()  { [ "$(guard_code "$1" "${@:2}")" = "2" ]; }
 allows()  { [ "$(guard_code "$1" "${@:2}")" = "0" ]; }
 
-PUSH='{"tool_name":"Bash","tool_input":{"command":"git push"}}'
+PUSH='{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}'
+PUSH_BRANCHE='{"tool_name":"Bash","tool_input":{"command":"git push -u origin ma-branche"}}'
+GH_PR='{"tool_name":"Bash","tool_input":{"command":"gh pr create --title x --body y"}}'
+GH_MERGE='{"tool_name":"Bash","tool_input":{"command":"gh pr merge 12"}}'
 BUILD='{"tool_name":"Bash","tool_input":{"command":"pnpm nx build app"}}'
 DOTENV='{"tool_name":"Read","tool_input":{"file_path":"/w/.env"}}'
 
 section "Garde-fou"
-check  "git push est bloqué"                      blocks "$PUSH"
+check  "git push sur main est bloqué"             blocks "$PUSH"
+check  "git push sur une branche passe"           allows "$PUSH_BRANCHE"
+check  "gh pr create passe"                       allows "$GH_PR"
+check  "gh pr merge est bloqué"                   blocks "$GH_MERGE"
 check  "une commande anodine passe"               allows "$BUILD"
 check  "la lecture d'un .env est bloquée"         blocks "$DOTENV"
 check  "un payload illisible ne bloque pas"       allows 'pas du json'
