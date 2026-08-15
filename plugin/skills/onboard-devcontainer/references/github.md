@@ -1,7 +1,7 @@
 # Credentials GitHub
 
 À faire une fois par poste, quel que soit le mode. Le container peut pousser des
-branches et ouvrir des pull requests ; il ne merge pas.
+branches et ouvrir des pull requests ; il ne doit pas merger.
 
 ## 1. Le jeton
 
@@ -45,6 +45,11 @@ par une commande que tu composes.
 À lancer **depuis le poste**, avec le `gh` de l'humain : créer une ruleset
 demande la permission `Administration`, que le PAT du container n'a pas — et ne
 doit pas avoir.
+
+Les deux commandes ci-dessous sont des `gh api` : si tu es un agent qui lit
+cette section depuis le container, le garde-fou les refuse, et c'est attendu —
+ce n'est pas une panne à contourner. Elles appartiennent à l'humain, sur son
+poste, pas à toi.
 
 Vérifier d'abord ce qui existe, pour ne pas écraser :
 

@@ -65,7 +65,8 @@ Dis-lui enfin que **le projet qui va naître dans ce container vivra dans un
 volume Docker et pas sur son disque**, et qu'il ne survit pas à la recréation du
 container. C'est plus aigu ici que dans les autres modes : le dépôt est vide,
 donc il n'existe aucune copie ailleurs tant que rien n'a été poussé. Enchaîne sur
-`references/github.md` — c'est ce qui rend le premier push possible.
+`references/github.md` — c'est ce qui rend le premier push possible. Le premier
+push est donc à faire tôt, pas à la fin.
 
 ## 5. Répertoire non vide, sans manifeste Node ni Firebase reconnu
 

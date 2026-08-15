@@ -111,7 +111,8 @@ dans un volume de sources neuf, donc ce qui n'a pas été poussé disparaît, su
 rebuild réussi comme sur un accident. C'est un changement d'habitude à annoncer
 franchement quand le dépôt travaillait jusque-là sur le disque de l'hôte, où
 rien ne se perdait à reconstruire. Le garde-fou bloque `git push origin main`,
-pas le push d'une branche : c'est désormais ce qui met le travail à l'abri.
+pas le push d'une branche : pousser une branche est désormais possible depuis
+le container, et c'est la seule chose qui met le travail à l'abri.
 
 Enchaîne sur `references/github.md` : le montage `agent-gh` ne sert à rien tant
 que la connexion `gh` n'a pas été faite une fois dans le container.

@@ -241,9 +241,11 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
 - **Le jeton d'authentification de l'agent est lisible depuis la session.** Une
   règle qui prétendrait en interdire la lecture serait décorative.
 - **L'agent peut commiter localement et modifier n'importe quel fichier du
-  workspace.** Il peut aussi pousser une branche et ouvrir une PR. Restent
-  bloqués : `firebase deploy`, `npm publish`, tout `gcloud`, et les commandes
-  `gh` hors création/modification/lecture de PR.
+  workspace.** Il peut aussi pousser une branche, ouvrir et modifier une PR ou
+  une issue, et lire le dépôt (`gh repo view`, `gh search`, `gh browse`…).
+  Restent bloqués : `firebase deploy`, `npm publish`, tout `gcloud`, et les
+  commandes `gh` hors lecture, PR et issues — `gh pr merge`, `gh pr close`,
+  `gh api` et `gh auth login` compris.
 - **`main` et le merge ne sont protégés que par la consigne.** Le garde-fou
   refuse `git push origin main` et `gh pr merge`, mais le jeton GitHub est
   lisible depuis la session et l'API est joignable : un appel direct passerait.
@@ -265,9 +267,9 @@ Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas
   poussé disparaît, **commits locaux compris, et sur un rebuild parfaitement
   réussi** — pas seulement sur un accident. Les volumes ainsi laissés orphelins,
   un `docker volume prune` ou une remise à zéro de Docker Desktop achèvent le
-  reste, et aucune sauvegarde de l'hôte ne les couvre. La fenêtre s'est refermée
-  depuis que le container peut pousser : c'est maintenant à portée de l'agent, et
-  une branche poussée est la seule copie qui survit au volume.
+  reste, et aucune sauvegarde de l'hôte ne les couvre. La fenêtre s'est
+  resserrée depuis que le container peut pousser : c'est maintenant à portée de
+  l'agent, et une branche poussée est la seule copie qui survit au volume.
 - **Le volume de login est partagé entre projets, donc `.claude.json` aussi.**
   Le container d'un projet peut lire la configuration MCP d'un autre —
   `mcpServers` porte couramment des clés d'API tierces dans ses blocs `env` —
