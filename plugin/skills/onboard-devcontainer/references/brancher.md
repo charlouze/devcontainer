@@ -5,26 +5,29 @@ déjà dans le dépôt : lis-le, n'interroge pas l'humain.
 
 ## 1. Lire le dépôt
 
-**`firebase.json`** — si une section `emulators` existe, **elle fait autorité**,
-y compris pour un port déplacé, et ce indépendamment de ce qui figure par
-ailleurs à la racine du fichier. Chaque émulateur qui y figure est à ouvrir ;
+**`firebase.json`** — la seule chose à en tirer est la liste des émulateurs
+**qui ont une variable d'environnement**, et le port de chacun. Le container ne
+publie aucun port sur l'hôte (le bloc de commentaires du template dit pourquoi) :
+un émulateur qui n'a pas de variable — UI, Hosting, Functions — ne laisse donc
+plus aucune trace dans le `devcontainer.json`. Il tournera dans le container
+comme les autres, joignable en loopback par ce qui tourne à côté de lui, et
+c'est tout ce qu'on lui demande.
+
+Si une section `emulators` existe, **elle fait autorité**, y compris pour un
+port déplacé, et ce indépendamment de ce qui figure par ailleurs à la racine du
+fichier. Chaque émulateur qui y figure et qui a une variable en reçoit une ;
 s'il n'y précise pas de `port`, prends le port par défaut de la table
-ci-dessous. Une clé produit de premier niveau (`hosting`, `firestore`,
-`functions`, …) absente de `emulators` ne démarre pas : c'est de la
-configuration de déploiement, pas un émulateur à ouvrir — ne la complète pas
-avec un port par défaut au prétexte qu'elle existe ailleurs dans le fichier.
+ci-dessous. Une clé produit de premier niveau (`firestore`, `storage`, …)
+absente de `emulators` ne démarre pas : c'est de la configuration de
+déploiement, pas un émulateur — ne lui donne pas de variable au prétexte qu'elle
+existe ailleurs dans le fichier.
 
 Seulement si la section `emulators` est absente du fichier tout entier, prends
-les clés produits de premier niveau (`firestore`, `functions`, `hosting`,
-`storage`, `database`) et donne à chacune son port par défaut. L'émulateur UI
-n'a pas de clé produit : ouvre son port dès qu'il y a des émulateurs, dans les
-deux cas.
+les clés produits de premier niveau (`firestore`, `storage`, `database`) et
+donne à chacune son port par défaut.
 
 | Émulateur | Port par défaut | Variable d'environnement |
 |---|---|---|
-| UI | 4000 | — |
-| Hosting | 5000 | — |
-| Functions | 5001 | — |
 | Firestore | 8080 | `FIRESTORE_EMULATOR_HOST` |
 | Pub/Sub | 8085 | `PUBSUB_EMULATOR_HOST` |
 | Realtime Database | 9000 | `FIREBASE_DATABASE_EMULATOR_HOST` |
@@ -36,27 +39,15 @@ configuré — celui trouvé pour cet émulateur (`emulators.<nom>.port` s'il es
 présent, sinon le port par défaut de la table), jamais aveuglément le port par
 défaut de la table : c'est la même autorité de `emulators` sur un port
 déplacé qui s'applique ici. C'est cette variable qui empêche les SDK de viser
-autre chose que le local. Functions et Hosting n'ont pas d'équivalent côté
-client — l'émulateur injecte lui-même l'environnement dans le runtime des
-fonctions, seul le port est à ouvrir.
+autre chose que le local.
 
 **`.firebaserc`** — `projects.default` donne l'identifiant de projet, qui
 alimente `GCLOUD_PROJECT` et `GOOGLE_CLOUD_PROJECT`. Absent, cherche-le dans
 `firebase.json` ; toujours absent, prends `demo-<slug>` et dis-le.
 
-**Le port de serve** — le chemin de clé dépend du format, et les deux peuvent
-coexister le temps d'une migration Angular→Nx :
-
-- `project.json` (Nx moderne) — `targets.serve.options.port` ;
-- `angular.json` (Angular CLI, ou un Nx qui garde encore ce format) —
-  `projects.<app>.architect.serve.options.port`.
-
-`nx.json` est la config du workspace (défauts de targets, task runner) : il ne
-porte normalement pas le port de serve d'un projet précis, ne le lis pas pour
-cette valeur. Si `project.json` et `angular.json` coexistent pour le même
-projet, retiens `project.json` — c'est une convention adoptée ici pour trancher
-sans ambiguïté, pas un fait vérifié sur la façon dont Nx résout ses sources. À
-défaut de tout, 4200.
+**Le port de serve ne se lit pas.** Ni `project.json`, ni `angular.json`, ni
+`nx.json` : il n'alimentait que `forwardPorts`, qui n'existe plus. Le serve
+écoutera son port habituel dans le container, où rien ne le lui dispute.
 
 **`package.json`** — la présence de `@playwright/test` décide de la ligne
 Playwright de la tâche `setup`, et de rien d'autre.
@@ -71,12 +62,14 @@ remplace :
 - `<projet-firebase>` — l'identifiant trouvé plus haut ;
 - `<slug>` — le slug, dans les deux sources de volumes concernées.
 
-Puis ajuste `containerEnv`, `forwardPorts` et `portsAttributes` d'après les
-émulateurs détectés : une variable par émulateur qui en a une, un port et un
-libellé par émulateur ouvert, plus le port de serve.
+Puis ajuste `containerEnv` d'après les émulateurs détectés : une variable par
+émulateur qui en a une, et rien pour les autres. Ne touche pas au bloc
+`otherPortsAttributes` du template et n'ajoute ni `forwardPorts`, ni `appPort`,
+ni `portsAttributes` — l'invariant `aucun-port-publie` de la liste de contrôle
+finale les refuse.
 
-Si le dépôt n'a pas de Firebase du tout, retire les variables d'émulateur et
-leurs ports : ne laisse pas des réglages qui décrivent une stack absente.
+Si le dépôt n'a pas de Firebase du tout, retire les variables d'émulateur : ne
+laisse pas des réglages qui décrivent une stack absente.
 
 ## 3. Ajouter la tâche `setup` au `mise.toml`
 

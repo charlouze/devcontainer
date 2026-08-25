@@ -114,8 +114,12 @@ si tu en violes un, la faute se verra plus tard et coûtera plus cher.
   activer ou désactiver le garde-fou. Il s'active sur la présence de
   `/etc/claude-guard/enabled`, root et non falsifiable, précisément parce que
   l'agent contrôle l'environnement des processus qu'il lance.
-- `ports-libelles` — chaque port de `forwardPorts` a son entrée dans
-  `portsAttributes`.
+- `aucun-port-publie` — pas de `forwardPorts`, pas d'`appPort`, pas d'entrée
+  dans `portsAttributes`, et `otherPortsAttributes` vaut
+  `{ "onAutoForward": "ignore" }`. Plusieurs containers tournent en même temps
+  et les ports conventionnels restent à ce qu'on lance sur le poste. À
+  l'intérieur, rien ne change : le serve et les émulateurs se parlent en
+  loopback.
 
 Termine en rappelant à l'humain ce que le garde-fou **ne** protège **pas** : le
 jeton d'authentification de l'agent est lisible depuis la session, et celui de

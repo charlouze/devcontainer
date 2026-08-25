@@ -14,7 +14,6 @@ Du `devcontainer.json` existant, ne garde que :
   règle générale de `SKILL.md` (`package.json`, à défaut le nom du
   répertoire) : l'ancien fichier est ce que le projet a déjà choisi comme nom
   lisible, ne le redérive pas d'ailleurs ;
-- les ports (`forwardPorts`, `portsAttributes`) ;
 - les variables d'émulateur et l'identifiant de projet Firebase ;
 - toute personnalisation d'IDE propre au projet.
 
@@ -29,7 +28,12 @@ dans l'image, elle se garde. En particulier, ne recopie **jamais** :
 - un `build`/`dockerFile` — l'image remplace le Dockerfile ;
 - un `postCreateCommand` pointant dans le workspace ;
 - des `runArgs` supplémentaires : le parser d'IntelliJ échoue sur ce qu'il ne
-  connaît pas, et le template porte déjà ce qu'il faut.
+  connaît pas, et le template porte déjà ce qu'il faut ;
+- les ports (`forwardPorts`, `appPort`, `portsAttributes`) — plus rien n'est
+  publié sur l'hôte, et les émulateurs restent joignables en loopback depuis le
+  container. Ces ports gardent une utilité de lecture, et une seule : un
+  émulateur ouvert là mais absent de l'ancien `containerEnv` signale une
+  variable manquante, à ajouter d'après la table de `references/brancher.md` §1.
 
 Si l'ancien fichier portait un réglage que tu ne sais pas classer, **demande**
 plutôt que de trancher.
@@ -99,9 +103,15 @@ pas vérifiable : n'ajoute pas la ligne Playwright plutôt que de deviner.
 
 ## 6. Terminer
 
-Repasse la liste de contrôle finale de `SKILL.md`. Annonce qu'aucun changement
-fonctionnel n'est attendu côté développeur — mêmes ports, mêmes tâches, mêmes
-garde-fous — et que la première ouverture reconstruira le container.
+Repasse la liste de contrôle finale de `SKILL.md`. Annonce que les tâches et les
+garde-fous sont inchangés, et que la première ouverture reconstruira le
+container.
+
+Un seul changement est à annoncer explicitement : **le container ne publie plus
+aucun port sur l'hôte**. Ce qui tourne dedans reste joignable dedans, et les
+ports conventionnels redeviennent disponibles pour ce qu'on lance sur le poste ;
+en revanche, ouvrir l'app du container dans le navigateur de l'hôte n'est plus
+possible. C'est délibéré — le bloc de commentaires du template dit pourquoi.
 
 Dis-lui aussi que **le workspace, à partir de cette reconstruction, vivra dans
 un volume Docker et pas sur le disque de l'hôte** — c'est justement le

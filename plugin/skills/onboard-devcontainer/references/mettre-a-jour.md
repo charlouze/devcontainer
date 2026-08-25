@@ -49,11 +49,16 @@ Compare le fichier du dépôt au template, clé par clé, et **rapporte** :
   `containerUser`, `remoteUser`, `postCreateCommand`, `runArgs`, et les sources
   des volumes partagés `agent-*` ;
 - les commentaires du template qui manquent ;
-- un port de `forwardPorts` sans libellé.
+- **tout port publié** : un `forwardPorts` ou un `appPort` non vide, une entrée
+  de `portsAttributes`, ou un `otherPortsAttributes` qui ne vaut pas
+  `{ "onAutoForward": "ignore" }`. C'est l'écart le plus courant sur un projet
+  branché avant cette règle — il date d'une époque où le template publiait
+  quatre ports, et c'est exactement ce qui empêche deux containers de tourner
+  ensemble et prend les ports de ce qu'on lance sur le poste.
 
 Ne rapporte pas comme écart ce qui appartient légitimement au projet : `name`,
-`containerEnv`, la liste des ports, les sources de volumes préfixées par le
-slug, les personnalisations d'IDE.
+`containerEnv`, les sources de volumes préfixées par le slug, les
+personnalisations d'IDE.
 
 ## 3. Corriger
 
@@ -69,19 +74,16 @@ se montre et se fait valider comme le reste avant d'être corrigée.
 - Si le `mise.toml` n'a pas de tâche `setup`, ajoute-la comme au mode
   « brancher ». Si elle existe, **n'y touche pas** : c'est le projet qui la tient.
 - Si `firebase.json` ou `.firebaserc` existe, relis-les avec les règles de
-  lecture du mode « brancher » §1, et corrige les ports et libellés
-  d'émulateurs dans `forwardPorts`/`portsAttributes`, leurs variables dans
-  `containerEnv`, et l'identifiant de projet — **en retrait comme en ajout**.
-  Un émulateur apparu depuis le branchement gagne son port et sa variable ; un
-  émulateur retiré de `firebase.json` perd les siens ; un port déplacé se
-  corrige à la nouvelle valeur ; un `demo-<slug>` posé faute de mieux au mode
-  « amorcer » se remplace par le véritable identifiant dès que `.firebaserc`
-  en fournit un. Le port de serve (Angular/Nx) n'est pas concerné : il ne vient
-  pas de `firebase.json`, la règle du §2 continue de le laisser au projet.
-  C'est la seule exception à cette règle qui laisse `containerEnv` et la liste
-  des ports au projet : elle ne vaut que pour ce que `firebase.json` ou
-  `.firebaserc` disent explicitement, et seulement quand l'un des deux existe
-  — en leur absence, rien ne change.
+  lecture du mode « brancher » §1, et corrige les variables d'émulateur de
+  `containerEnv` et l'identifiant de projet — **en retrait comme en ajout**. Un
+  émulateur apparu depuis le branchement gagne sa variable ; un émulateur retiré
+  de `firebase.json` perd la sienne ; un port déplacé se corrige à la nouvelle
+  valeur dans la variable ; un `demo-<slug>` posé faute de mieux au mode
+  « amorcer » se remplace par le véritable identifiant dès que `.firebaserc` en
+  fournit un. C'est la seule exception à la règle du §2 qui laisse `containerEnv`
+  au projet : elle ne vaut que pour ce que `firebase.json` ou `.firebaserc`
+  disent explicitement, et seulement quand l'un des deux existe — en leur
+  absence, rien ne change.
 - Si `.devcontainer/` contient encore un `Dockerfile`, un `post-create.sh`, un
   `agent-guard.cjs` ou un `managed-settings.json`, le dépôt est en fait à moitié
   migré : bascule sur `references/migrer.md` et dis-le.

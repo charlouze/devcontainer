@@ -50,7 +50,10 @@ const INVARIANTS = [
     id: 'pas-de-variable-garde-fou',
     libelle: "aucune variable d'environnement ne prétend piloter le garde-fou",
   },
-  { id: 'ports-libelles', libelle: 'chaque port de forwardPorts porte un libellé' },
+  {
+    id: 'aucun-port-publie',
+    libelle: "aucun port n'est publié sur l'hôte, et le forward automatique est coupé",
+  },
 ];
 
 function paires(liste) {
@@ -148,11 +151,31 @@ function verifier(texte) {
     }
   }
 
-  const libelles = config.portsAttributes || {};
   for (const port of config.forwardPorts || []) {
-    if (!libelles[String(port)] || !libelles[String(port)].label) {
-      refuse('ports-libelles', `le port ${port} est ouvert sans libellé.`);
-    }
+    refuse('aucun-port-publie', `le port ${port} est publié sur l'hôte.`);
+  }
+
+  // `appPort` devient un `-p` de `docker run` : une réservation exclusive, qui
+  // fait échouer le démarrage du second container au lieu de se contenter de
+  // rendre le port illisible.
+  const appPort = config.appPort;
+  const appPorts = Array.isArray(appPort) ? appPort : appPort == null ? [] : [appPort];
+  for (const port of appPorts) {
+    refuse('aucun-port-publie', `appPort ${port} : publication directe par docker run.`);
+  }
+
+  // Un libellé résiduel n'est pas décoratif : `portsAttributes` a priorité sur
+  // `otherPortsAttributes`, et son `onAutoForward` par défaut publie. Une entrée
+  // laissée là rouvre donc le port qu'elle prétend seulement nommer.
+  for (const port of Object.keys(config.portsAttributes || {})) {
+    refuse('aucun-port-publie', `portsAttributes garde une entrée pour ${port}.`);
+  }
+
+  if ((config.otherPortsAttributes || {}).onAutoForward !== 'ignore') {
+    refuse(
+      'aucun-port-publie',
+      'otherPortsAttributes.onAutoForward doit valoir "ignore" : sinon un serveur qui démarre se fait publier tout seul.'
+    );
   }
 
   return violations;
