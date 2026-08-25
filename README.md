@@ -68,6 +68,30 @@ description = "Provisionnement du projet"
 run = "pnpm install --frozen-lockfile"
 ```
 
+## Les ports restent à l'hôte
+
+Un container ne publie **aucun** port : ni `forwardPorts`, ni `appPort`, ni
+entrée dans `portsAttributes`, et `otherPortsAttributes` coupe le forward des
+ports que l'IDE détecte tout seul. L'invariant `aucun-port-publie` le vérifie.
+
+C'est ce qui permet d'ouvrir plusieurs projets en même temps — sinon le second
+container se dispute 4200 ou 8080 avec le premier — et surtout de garder les
+ports conventionnels pour ce qu'on lance sur le poste. Un dev container est un
+plan de travail pour l'agent, pas l'endroit où on fait tourner l'app qu'on
+regarde.
+
+Rien ne change à l'intérieur : le serve, les émulateurs et Playwright se parlent
+en loopback, et c'est déjà ce que pointent les variables `*_EMULATOR_HOST` de
+`containerEnv`. Un test Playwright lancé dans le container voit l'app et les
+émulateurs comme avant.
+
+Ce qui n'est plus possible, et c'est délibéré : ouvrir l'app d'un container dans
+le navigateur de l'hôte. Le JS s'exécuterait dans ce navigateur, donc son
+`127.0.0.1` serait celui du poste, et il n'y trouverait aucun émulateur — les
+variables d'environnement n'y peuvent rien, seuls les SDK serveur les lisent. Le
+mode « mettre à jour » signale les ports d'un projet branché avant cette règle,
+et les retire une fois le diff validé.
+
 ## Règles de garde-fou propres à un projet
 
 Le garde-fou lit `${CLAUDE_PROJECT_DIR}/.devcontainer/guard-rules.json` s'il

@@ -44,8 +44,7 @@ const conforme = () =>
         '--cap-add',
         'SETGID',
       ],
-      forwardPorts: [4200],
-      portsAttributes: { 4200: { label: 'App Angular' } },
+      otherPortsAttributes: { onAutoForward: 'ignore' },
       postCreateCommand: '/usr/local/share/devcontainer/post-create.sh',
     })
   );
@@ -141,8 +140,38 @@ test('une variable qui prétend piloter le garde-fou est refusée', () => {
   ]);
 });
 
-test('un port ouvert sans libellé est refusé', () => {
-  assert.deepStrictEqual(violations((c) => c.forwardPorts.push(8080)), ['ports-libelles']);
+test('un port de forwardPorts est refusé : il prendrait le port sur l\'hôte', () => {
+  assert.deepStrictEqual(violations((c) => (c.forwardPorts = [4200])), ['aucun-port-publie']);
+});
+
+test('un forwardPorts vide passe : il ne publie rien', () => {
+  assert.deepStrictEqual(violations((c) => (c.forwardPorts = [])), []);
+});
+
+// `appPort` devient un `-p` de `docker run`, donc une réservation exclusive sur
+// l'hôte : c'est la forme la plus dure du défaut qu'on cherche à écarter.
+test('appPort est refusé, sous ses trois formes', () => {
+  assert.deepStrictEqual(violations((c) => (c.appPort = 4200)), ['aucun-port-publie']);
+  assert.deepStrictEqual(violations((c) => (c.appPort = '14200:4200')), ['aucun-port-publie']);
+  assert.deepStrictEqual(violations((c) => (c.appPort = ['14200:4200'])), ['aucun-port-publie']);
+});
+
+// Un libellé résiduel n'est pas décoratif : `portsAttributes` a priorité sur
+// `otherPortsAttributes`, et son `onAutoForward` par défaut publie. Une entrée
+// oubliée rouvre donc précisément le port qu'elle prétend seulement nommer.
+test('un libellé de port résiduel est refusé : il rouvre le forward pour ce port', () => {
+  assert.deepStrictEqual(
+    violations((c) => (c.portsAttributes = { 4200: { label: 'App Angular' } })),
+    ['aucun-port-publie']
+  );
+});
+
+test('sans otherPortsAttributes, les ports détectés par l\'IDE seraient publiés', () => {
+  assert.deepStrictEqual(violations((c) => delete c.otherPortsAttributes), ['aucun-port-publie']);
+  assert.deepStrictEqual(
+    violations((c) => (c.otherPortsAttributes = { onAutoForward: 'notify' })),
+    ['aucun-port-publie']
+  );
 });
 
 test('un fichier illisible produit une violation unique', () => {

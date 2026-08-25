@@ -64,13 +64,23 @@
     "--cap-add", "SETUID", "--cap-add", "SETGID"
   ],
 
-  // Un port ouvert sans libellé est illisible dans l'IDE : les deux listes se
-  // tiennent à jour ensemble.
-  "forwardPorts": [4200, 8080],
-  "portsAttributes": {
-    "4200": { "label": "App Angular" },
-    "8080": { "label": "Firestore emulator" }
-  },
+  // Aucun port n'est publié sur l'hôte. Plusieurs containers tournent en même
+  // temps : s'ils prenaient les ports conventionnels, le second échouerait, et
+  // surtout ils les retireraient à ce qu'on lance sur le poste. Rien n'est perdu
+  // à l'intérieur — le serve, les émulateurs et Playwright se parlent en
+  // loopback, et c'est déjà ce que pointe `containerEnv`.
+  //
+  // Ce qui est perdu, et c'est délibéré : ouvrir l'app du container dans le
+  // navigateur de l'hôte. Le JS s'exécuterait alors dans ce navigateur, donc son
+  // `127.0.0.1` serait celui du poste, et il ne trouverait aucun émulateur en
+  // face. Les variables ci-dessus n'y peuvent rien : seuls les SDK serveur les
+  // lisent.
+  //
+  // `otherPortsAttributes` couvre les ports que l'IDE détecte de lui-même : sans
+  // lui, un serveur qui démarre se ferait publier malgré l'absence de
+  // `forwardPorts`. Ne pas ajouter d'entrée `portsAttributes` en regard — elle
+  // aurait priorité, et son `onAutoForward` par défaut republierait le port.
+  "otherPortsAttributes": { "onAutoForward": "ignore" },
 
   // Fourni par l'image. Rien de critique ne passe par le label
   // `devcontainer.metadata` : le support des labels d'image par le plugin
