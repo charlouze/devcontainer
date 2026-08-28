@@ -11,6 +11,7 @@ say "Store pnpm";          "$lib/configure-pnpm.sh"
 say "Réglages Claude";     "$lib/claude-settings.sh"
 say "Conventions";         "$lib/claude-conventions.sh"
 say "Plugins";             "$lib/install-plugins.sh"
+say "CodeGraph";           "$lib/codegraph.sh"
 say "Git";                 git config --global --add safe.directory "$PWD"
 say "GitHub";              "$lib/github-auth.sh"
 
@@ -29,6 +30,8 @@ cat <<EOF
 
     claude          première fois : login
     yolo            claude --dangerously-skip-permissions
+    codegraph       graphe du code, interrogé par l'agent via MCP
+                    (l'indexation tourne en fond, elle vient de démarrer)
 
   Garde-fous actifs dans ce container :
     - aucun credential Google/GCP : le SDK Admin ne peut viser que l'émulateur
