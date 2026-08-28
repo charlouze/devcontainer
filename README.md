@@ -22,7 +22,7 @@ section « Ce que le garde-fou ne protège pas » le dit sans détour.
 
 | Image | Contenu |
 |---|---|
-| `ghcr.io/charlouze/devcontainer-agent-base` | Debian bookworm, utilisateur `dev`, durcissement, garde-fou, `mise` en user-level, CLI Claude, historique bash persistant, provisionnement |
+| `ghcr.io/charlouze/devcontainer-agent-base` | Debian bookworm, utilisateur `dev`, durcissement, garde-fou, `mise` en user-level, CLI Claude, `gh`, `codegraph`, historique bash persistant, provisionnement |
 | `ghcr.io/charlouze/devcontainer-web` | La précédente + node, pnpm, java (émulateurs Firebase) et les dépendances système des navigateurs Playwright |
 
 Tags publiés : `1` (flottant sur la majeure, c'est celui à utiliser), `1.x.y`
@@ -148,6 +148,34 @@ l'identité de commit depuis `gh api user`.
 Sans connexion, le provisionnement le dit et continue : le container est alors
 celui d'avant, sans capacité de push. C'est aussi ce qui arrive quand le PAT
 expire.
+
+## Le graphe du code
+
+L'image embarque [codegraph](https://github.com/colbymchenry/codegraph) : le
+dépôt est indexé dans un graphe local — symboles, appelants, appelés, impact d'un
+changement — que l'agent interroge par l'outil MCP `codegraph_explore` au lieu
+d'enchaîner les `grep`. Le CLI `codegraph` répond aux mêmes questions depuis un
+terminal.
+
+Tout reste dans le container : l'index est un SQLite sous `.codegraph/` du
+workspace, et l'outil ne parle à aucun service. La télémétrie, active par défaut
+en amont, est coupée par un `ENV` de l'image.
+
+Le provisionnement enregistre le serveur MCP au scope `user` — donc une fois pour
+tous les projets, comme les plugins — puis lance l'indexation **en tâche de
+fond** : sur un gros dépôt elle se compte en minutes, que l'ouverture du
+container n'a pas à faire attendre. Le journal est dans
+`~/.cache/codegraph-init.log`.
+
+Le revers est réel et vaut d'être dit : pendant cette fenêtre, le graphe est
+incomplet, et un « aucun appelant » lu là a toutes les apparences d'une réponse.
+C'est pourquoi l'image expose `codegraph_status` en plus d'`explore`, et pourquoi
+les conventions distribuées demandent à l'agent de l'interroger avant de conclure
+une absence, puis de retomber sur `rg`. Ni le graphe ni le câblage ne sont
+bloquants : s'ils échouent, le provisionnement le dit et continue.
+
+`.codegraph/` s'auto-ignore — le provisionnement y écrit un `.gitignore`
+contenant `*`, le dépôt du projet n'a rien à changer au sien.
 
 ## Ce qui persiste d'une recréation à l'autre
 

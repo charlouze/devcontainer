@@ -28,6 +28,22 @@ Ces deux règles sont tenues par la consigne, pas par le container : le jeton
 présent ici permettrait de les enfreindre. C'est dit franchement pour que la
 confiance porte sur ce qui la mérite.
 
+## Exploration du code
+
+Ce container fournit **codegraph** : un graphe du dépôt — symboles, appelants,
+appelés, impact d'un changement — interrogeable par l'outil MCP
+`codegraph_explore`. Préfère-le au balayage `grep` à l'aveugle pour « qui appelle
+`X` », « qu'est-ce qui casse si je change `Y` », « où vit ce symbole » : une
+question, une réponse structurée, au lieu d'une dizaine de recherches
+successives. Le CLI `codegraph` couvre les mêmes questions depuis un terminal.
+
+**Un graphe vide n'est pas une absence.** L'index se construit en tâche de fond
+au provisionnement du container : pendant cette fenêtre, il répond « rien » à des
+questions dont la vraie réponse n'est pas « rien », et un « aucun appelant » lu
+là a toutes les apparences d'une réponse. Avant de conclure une absence,
+interroge `codegraph_status` ; tant que l'index n'est pas prêt, retombe sur `rg`
+plutôt que de prendre ce silence pour un résultat.
+
 ## Méthode
 
 L'implémentation d'un plan se fait **en subagents**, les tâches indépendantes

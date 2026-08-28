@@ -131,6 +131,39 @@ RUN printf '%s\n' "alias yolo='claude --dangerously-skip-permissions'" \
 ENV XDG_CONFIG_HOME=/home/dev/.config
 RUN mise use --global --yes gh@latest
 
+# codegraph indexe le dépôt dans un graphe local — symboles, appelants, appelés,
+# impact d'un changement — et l'expose à l'agent par un serveur MCP. Il évite le
+# balayage `grep` à l'aveugle : une question, une réponse structurée, au lieu
+# d'une dizaine de recherches successives.
+#
+# Rien ne sort du container : l'index est un SQLite dans le workspace, l'outil ne
+# parle à aucun service.
+#
+# Même forme que les installeurs ci-dessus — user-level, bundle dans
+# ~/.codegraph et lien dans ~/.local/bin, déjà en tête du PATH. Ni l'un ni
+# l'autre n'est un point de montage : l'outil vit dans la couche d'image et ne
+# réclame aucun volume. L'installeur est non interactif et ne touche à aucun
+# fichier rc.
+#
+# Le câblage MCP et l'indexation, eux, sont du provisionnement : cf. lib/codegraph.sh.
+#
+# Sauf la ligne ci-dessous, la télémétrie est active par défaut. En ENV d'image
+# et non dans le `containerEnv` du template, pour la raison qui vaut déjà pour
+# CLAUDE_CONFIG_DIR : un containerEnv qu'un IDE cesserait d'honorer reviendrait
+# vide, et le repli serait de rallumer la télémétrie sans erreur nulle part.
+ENV CODEGRAPH_TELEMETRY=0
+
+# Le serveur MCP ne liste que `codegraph_explore` par défaut, les autres outils
+# restant fonctionnels mais masqués — une économie de contexte que l'amont assume
+# et qu'on garde. `status` fait exception, et c'est l'indexation en tâche de fond
+# qui l'impose : il existe une fenêtre où le graphe est incomplet, pendant
+# laquelle il répond « rien » à des questions dont la vraie réponse n'est pas
+# « rien ». Sans de quoi demander si l'index est prêt, l'agent n'a aucun moyen de
+# distinguer un « aucun appelant » vrai d'un index encore vide.
+ENV CODEGRAPH_MCP_TOOLS=explore,status
+
+RUN curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
+
 USER root
 
 # Provisionnement. Le chmod explicite qui suit n'est pas décoratif : COPY

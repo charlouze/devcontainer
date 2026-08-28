@@ -107,6 +107,15 @@ refute "sudo est neutralisé"                     in_base 'sudo -n true'
 check  "mise est sur le PATH"                    in_base 'command -v mise'
 check  "claude est sur le PATH"                  in_base 'command -v claude'
 check  "gh est sur le PATH"                      in_base 'command -v gh'
+# Les deux chemins de chargement, parce que l'installeur de codegraph ne touche
+# à aucun fichier rc : il compte sur un PATH déjà bon. C'est exactement le mode
+# de panne que le Dockerfile documente — l'outil marche dans les scripts et reste
+# introuvable dans le terminal de l'IDE.
+check  "codegraph est sur le PATH"               in_base 'command -v codegraph'
+check  "codegraph est sur le PATH en non-login"  in_base_i 'command -v codegraph'
+# lib/codegraph.sh détache l'indexation avec setsid. S'il manquait, l'indexation
+# ne partirait jamais et l'agent n'aurait qu'un graphe vide, sans message.
+check  "setsid est disponible"                   in_base 'command -v setsid'
 check  "l'alias yolo existe"                     in_base_i 'alias yolo'
 check  "mise installe un outil à chaud sous dev" in_base 'mise install node@24 && mise exec node@24 -- node --version'
 
@@ -246,6 +255,40 @@ check "identity.sh avertit sous root" \
 check "github-auth sans connexion sort en 0 et dit quoi faire" in_base '
   sortie="$(/usr/local/share/devcontainer/lib/github-auth.sh)" &&
   printf "%s" "$sortie" | grep -q "gh auth login --with-token"'
+
+section "CodeGraph"
+
+# Sans shell du tout, pour la même raison que CLAUDE_CONFIG_DIR plus haut : c'est
+# ce qu'un ENV d'image garantit. Sur la télémétrie, la valeur par défaut de
+# l'outil est « active » — l'absence de cette variable ne se verrait donc nulle
+# part, sinon dans le trafic sortant.
+check "la télémétrie codegraph est coupée pour tout processus" \
+  test "$(docker run --rm -u dev "${HARD[@]}" "$BASE_IMAGE" printenv CODEGRAPH_TELEMETRY)" = 0
+
+# `status` en plus d'`explore` : c'est ce qui permet à l'agent de distinguer un
+# « aucun appelant » vrai d'un index encore en construction. Non listé par
+# défaut, donc invisible sans cette variable.
+check "l'outil MCP status est exposé en plus d'explore" \
+  test "$(docker run --rm -u dev "${HARD[@]}" "$BASE_IMAGE" printenv CODEGRAPH_MCP_TOOLS)" = explore,status
+
+# L'index est une base SQLite dans le workspace. Sans auto-ignore, il apparaît
+# dans le premier `git status` du projet, et c'est au dépôt de se défendre.
+check "codegraph.sh rend l'index invisible de git" in_base '
+  mkdir -p /tmp/projet-cg && cd /tmp/projet-cg
+  mkdir -p /tmp/bin-ok && printf "%s\n" "#!/bin/sh" "exit 0" > /tmp/bin-ok/claude
+  chmod +x /tmp/bin-ok/claude
+  PATH=/tmp/bin-ok:$PATH /usr/local/share/devcontainer/lib/codegraph.sh &&
+  [ "$(cat /tmp/projet-cg/.codegraph/.gitignore)" = "*" ]'
+
+# Le graphe est un confort, pas une dépendance : un câblage raté doit se dire et
+# se rejouer, jamais interrompre le provisionnement. Ici `claude` échoue à tous
+# les coups — l'état d'un container dont le volume de login est neuf.
+check "un câblage MCP raté n'arrête pas le provisionnement" in_base '
+  mkdir -p /tmp/projet-cg2 && cd /tmp/projet-cg2
+  mkdir -p /tmp/bin-ko && printf "%s\n" "#!/bin/sh" "exit 1" > /tmp/bin-ko/claude
+  chmod +x /tmp/bin-ko/claude
+  sortie="$(PATH=/tmp/bin-ko:$PATH /usr/local/share/devcontainer/lib/codegraph.sh 2>&1)" &&
+  printf "%s" "$sortie" | grep -q "claude mcp add"'
 
 check "post-create tolère l'absence de tâche setup" in_base '
   mkdir -p /tmp/vide && cd /tmp/vide
