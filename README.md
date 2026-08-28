@@ -165,7 +165,8 @@ Le provisionnement enregistre le serveur MCP au scope `user` — donc une fois p
 tous les projets, comme les plugins — puis lance l'indexation **en tâche de
 fond** : sur un gros dépôt elle se compte en minutes, que l'ouverture du
 container n'a pas à faire attendre. Le journal est dans
-`~/.cache/codegraph-init.log`.
+`~/.cache/codegraph-init.log`, ou `codegraph-sync.log` quand l'index du
+workspace a survécu à la recréation et n'a plus qu'à être mis à jour.
 
 Le revers est réel et vaut d'être dit : pendant cette fenêtre, le graphe est
 incomplet, et un « aucun appelant » lu là a toutes les apparences d'une réponse.
