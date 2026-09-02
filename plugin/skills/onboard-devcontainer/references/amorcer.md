@@ -69,6 +69,12 @@ donc il n'existe aucune copie ailleurs tant que rien n'a été poussé. Enchaîn
 `references/github.md` — c'est ce qui rend le premier push possible. Le premier
 push est donc à faire tôt, pas à la fin.
 
+Dis-lui aussi que **le container ne construira pas d'image OCI** — la question
+se pose tôt sur un projet qui naît, et plus tôt encore s'il vise un déploiement
+conteneurisé. La raison est au README du dépôt des images, section « Ce que le
+container ne sait pas faire » : ce n'est pas un réglage à ajuster, c'est une
+propriété du dispositif.
+
 ## 5. Répertoire non vide, sans manifeste Node ni Firebase reconnu
 
 Remplace les sections 1 à 4 pour ce cas : la question sur les émulateurs,

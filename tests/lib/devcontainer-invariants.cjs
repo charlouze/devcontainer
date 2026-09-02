@@ -17,6 +17,13 @@ const POST_CREATE = '/usr/local/share/devcontainer/post-create.sh';
 const CAPS_AUTORISEES = ['CHOWN', 'FOWNER', 'DAC_OVERRIDE', 'SETUID', 'SETGID'];
 const OPTIONS_AUTORISEES = ['--security-opt', '--cap-drop', '--cap-add'];
 
+// Liste blanche des VALEURS, en regard de la liste blanche des options. Sans
+// elle, `--security-opt seccomp=unconfined` passait tous les invariants : le
+// contrôle ne portait que sur la présence de no-new-privileges, jamais sur ce
+// qui pouvait l'accompagner. Or seccomp=unconfined autorise
+// unshare(CLONE_NEWUSER) — c'est la seule option qui rapproche d'une évasion.
+const SECURITY_OPTS_AUTORISEES = ['no-new-privileges'];
+
 // Cibles dont la source est imposée : le login et les caches sont mutualisés
 // entre projets. Le partage n'est sûr par construction que pour le store pnpm ;
 // le cache Playwright, compté par références, ne l'est que parce que l'image
@@ -38,7 +45,8 @@ const INVARIANTS = [
   { id: 'post-create', libelle: `postCreateCommand vaut exactement ${POST_CREATE}` },
   {
     id: 'runargs-securite',
-    libelle: 'runArgs porte no-new-privileges, --cap-drop ALL, et aucune capability hors liste',
+    libelle:
+      'runArgs porte no-new-privileges, --cap-drop ALL, et aucune capability ni option de sécurité hors liste',
   },
   {
     id: 'runargs-parser',
@@ -115,6 +123,9 @@ function verifier(texte) {
   for (const [option, valeur] of options) {
     if (option === '--cap-add' && !CAPS_AUTORISEES.includes(valeur)) {
       refuse('runargs-securite', `capability hors liste : ${valeur}.`);
+    }
+    if (option === '--security-opt' && !SECURITY_OPTS_AUTORISEES.includes(valeur)) {
+      refuse('runargs-securite', `option de sécurité hors liste : ${valeur}.`);
     }
     if (!OPTIONS_AUTORISEES.includes(option)) {
       refuse('runargs-parser', `option ${option} : le parser d'IntelliJ échouera dessus.`);

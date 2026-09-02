@@ -74,6 +74,28 @@ const BASH_RULES = [
     /(^|[\s;&|(])(gcloud|gsutil|bq)([\s;&|)]|$)/,
     'Aucun accès à Google Cloud depuis ce container, par construction.',
   ],
+  // Le préfixe (?:-\S+\s+)* absorbe les options globales, qui se glissent entre
+  // la commande et le verbe. `terraform -chdir=infra apply` est la forme
+  // ordinaire dès que le Terraform vit dans un sous-répertoire ; sans ce
+  // groupe, elle passerait sous les deux règles. Même construction que le
+  // préfixe des règles `git push`.
+  //
+  // `plan`, `init`, `fmt`, `validate` et `show` restent libres : sans
+  // Application Default Credentials, `plan` échoue de lui-même. Une règle qui
+  // le bloquerait prétendrait protéger ce que l'absence de credential protège
+  // déjà.
+  [
+    /(^|[\s;&|(])(terraform|tofu)\s+(?:-\S+\s+)*(apply|destroy|import|force-unlock|taint|untaint)\b/,
+    'Les commandes Terraform qui écrivent sont bloquées. `init`, `fmt`, ' +
+      '`validate`, `plan` et `show` restent disponibles.',
+  ],
+  // Les sous-commandes d'état ont un mot de plus, d'où une seconde entrée
+  // plutôt qu'une alternance qui rendrait le premier motif illisible.
+  [
+    /(^|[\s;&|(])(terraform|tofu)\s+(?:-\S+\s+)*state\s+(rm|mv|push|replace-provider)\b/,
+    "Réécrire l'état Terraform est bloqué : c'est le moyen détourné de " +
+      "changer l'infrastructure sans passer par un `apply`.",
+  ],
   [
     /\b(npm|pnpm|yarn)\s+publish\b/,
     'Publier un package est hors du périmètre de ces projets.',

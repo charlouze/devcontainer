@@ -99,8 +99,11 @@ si tu en violes un, la faute se verra plus tard et coûtera plus cher.
   `/usr/local/share/devcontainer/post-create.sh`. Le script est fourni par
   l'image : un chemin dans le workspace serait éditable par l'agent.
 - `runargs-securite` — `--security-opt no-new-privileges` et `--cap-drop ALL`
-  sont présents, et les seules capabilities rendues sont `CHOWN`, `FOWNER`,
-  `DAC_OVERRIDE`, `SETUID`, `SETGID`.
+  sont présents, les seules capabilities rendues sont `CHOWN`, `FOWNER`,
+  `DAC_OVERRIDE`, `SETUID`, `SETGID`, et `--security-opt` ne porte aucune autre
+  valeur que `no-new-privileges`. En particulier jamais `seccomp=unconfined` :
+  c'est l'option qui autorise la création d'un user namespace, donc la seule qui
+  rapproche d'un chemin d'évasion.
 - `runargs-parser` — `runArgs` ne contient rien d'autre que `--security-opt`,
   `--cap-drop` et `--cap-add`. Le parser d'IntelliJ ne connaît qu'un
   sous-ensemble des options `docker run` et échoue sur les autres. Les plafonds
@@ -130,3 +133,11 @@ protégés que par la consigne**. Le garde-fou refuse `git push origin main` et
 `gh pr merge`, mais le jeton présent dans la session permettrait de passer par
 l'API. Les seules garanties structurelles sont la portée du PAT et les
 permissions qu'il n'a pas.
+
+Dis-lui enfin ce que le container **ne sait pas faire** : il ne construit pas
+d'image OCI. Pas de socket Docker, et le rootless échoue aussi — la seule
+configuration qui construit est `root` + `seccomp=unconfined`, ce qui rendrait
+le garde-fou atteignable. Le blocage vient du profil seccomp par défaut de
+Docker et non du durcissement, donc en retirer ne débloquerait rien. La
+construction et le déploiement se font en CI ; le container rédige et vérifie
+statiquement.

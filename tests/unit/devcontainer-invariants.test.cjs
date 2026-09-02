@@ -98,6 +98,27 @@ test('une capability non prévue est refusée', () => {
   );
 });
 
+// C'est l'option qui autorise unshare(CLONE_NEWUSER), donc la seule qui
+// rapproche d'un chemin d'évasion. Elle passait les neuf invariants sans un
+// mot : le trou était en face de la serrure.
+test('une option de sécurité hors liste est refusée', () => {
+  assert.deepStrictEqual(
+    violations((c) => c.runArgs.push('--security-opt', 'seccomp=unconfined')),
+    ['runargs-securite']
+  );
+});
+
+// Docker accepte cette forme, pas nous : le contrôle de présence exige déjà la
+// chaîne exacte, et l'uniformité vaut mieux ici que la tolérance. Deux
+// violations remontent — la présence manquante et la valeur hors liste — d'où
+// la comparaison sur un Set plutôt que sur le tableau.
+test('la forme no-new-privileges:true est refusée', () => {
+  assert.deepStrictEqual(
+    new Set(violations((c) => (c.runArgs[1] = 'no-new-privileges:true'))),
+    new Set(['runargs-securite'])
+  );
+});
+
 test('une option que le parser IntelliJ ne connaît pas est refusée', () => {
   assert.deepStrictEqual(violations((c) => c.runArgs.push('--memory', '8g')), [
     'runargs-parser',
