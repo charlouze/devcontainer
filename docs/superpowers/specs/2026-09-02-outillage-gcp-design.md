@@ -156,12 +156,20 @@ Conséquence assumée : la forme `no-new-privileges:true`, que Docker accepte,
 sera refusée. C'est cohérent avec le contrôle de présence existant, qui exige
 déjà la chaîne exacte, et l'uniformité vaut mieux ici que la tolérance.
 
-Le libellé de l'invariant `runargs-securite` change, donc la liste de contrôle
-de `plugin/skills/onboard-devcontainer/SKILL.md` change avec lui :
-`tests/unit/skill-checklist.test.cjs` tient les deux en accord et échouera
-sinon. Un test à ajouter dans `tests/unit/devcontainer-invariants.test.cjs` :
-un `devcontainer.json` par ailleurs conforme, mais portant
-`seccomp=unconfined`, doit produire une violation.
+Le libellé de l'invariant `runargs-securite` change, donc la ligne
+correspondante de la liste de contrôle de
+`plugin/skills/onboard-devcontainer/SKILL.md` change avec lui. Attention : rien
+ne l'impose mécaniquement. `tests/unit/skill-checklist.test.cjs` ne vérifie que
+la **présence de l'identifiant** dans la prose — `skill.includes(\`${id}\`)` —
+et l'identifiant ne change pas ici. Une liste de contrôle laissée en arrière
+passerait donc la CI en silence. C'est une raison de plus de ne pas renommer
+l'invariant : un identifiant neuf aurait fait échouer le test, donc rappelé la
+prose à l'ordre, mais au prix de découper en deux ce qui est une seule
+préoccupation.
+
+Un test à ajouter dans `tests/unit/devcontainer-invariants.test.cjs` : un
+`devcontainer.json` par ailleurs conforme, mais portant `seccomp=unconfined`,
+doit produire une violation.
 
 ### 5.3 `/etc/subuid` et `/etc/subgid`
 
@@ -287,5 +295,7 @@ maintenant qu'on le sait :
   liste de contrôle, y compris ceux ajoutés en 5.1 et 5.2.
 - `mise run check` — la séquence complète de la CI, build des deux images
   compris, puis `tests/smoke.sh` avec l'assertion de 5.3.
-- Relecture manuelle des deux livrables que rien ne vérifie mécaniquement : la
-  section de README de 5.4 et le rappel de 5.5 dans la skill.
+- Relecture manuelle des trois livrables que rien ne vérifie mécaniquement : la
+  ligne `runargs-securite` de la liste de contrôle de la skill (5.2), la section
+  de README (5.4) et le rappel dans la skill (5.5). Les deux dernières sont de
+  la prose ; la première est une garantie que la CI ne rattrapera pas.
