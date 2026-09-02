@@ -133,3 +133,11 @@ protégés que par la consigne**. Le garde-fou refuse `git push origin main` et
 `gh pr merge`, mais le jeton présent dans la session permettrait de passer par
 l'API. Les seules garanties structurelles sont la portée du PAT et les
 permissions qu'il n'a pas.
+
+Dis-lui enfin ce que le container **ne sait pas faire** : il ne construit pas
+d'image OCI. Pas de socket Docker, et le rootless échoue aussi — la seule
+configuration qui construit est `root` + `seccomp=unconfined`, ce qui rendrait
+le garde-fou atteignable. Le blocage vient du profil seccomp par défaut de
+Docker et non du durcissement, donc en retirer ne débloquerait rien. La
+construction et le déploiement se font en CI ; le container rédige et vérifie
+statiquement.

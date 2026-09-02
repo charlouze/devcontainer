@@ -311,6 +311,40 @@ jamais le tag flottant `1`, sur lequel pointent tous les projets.
 En local, `mise run check` rejoue exactement la même séquence. Sous Windows, à
 lancer depuis Git Bash : dans PowerShell, `bash` résout vers le lanceur WSL.
 
+## Ce que le container ne sait pas faire
+
+**Il ne construit pas d'image OCI.** Ni `docker build` — il n'y a pas de socket
+Docker, et le monter serait une évasion en une commande — ni buildah ou podman
+en rootless.
+
+Mesuré le 2026-09-02, avec buildah 1.28 dans `devcontainer-web:1` sur Docker
+29.6.2 :
+
+| Configuration | user namespace | `FROM scratch` | avec `apt-get` |
+|---|---|---|---|
+| `runArgs` du template | refusé | non | non |
+| `docker run` nu, sans aucune option | refusé | non | non |
+| `+ seccomp=unconfined`, user `dev` | ok | oui | non |
+| idem sans `no-new-privileges`, caps par défaut | ok | oui | non |
+| `seccomp=unconfined`, user `root` | ok | oui | oui |
+
+**Le durcissement de ce dépôt n'est pas en cause**, et c'est le point à
+retenir : ni `no-new-privileges` ni `--cap-drop ALL` n'empêchent la création du
+user namespace. C'est le profil seccomp par défaut de Docker qui refuse
+`unshare(CLONE_NEWUSER)` — un `docker run` sans la moindre option échoue
+identiquement. En retirer ne débloquerait rien.
+
+Le verrou suivant, lui, ne s'ouvre que par root : une fois seccomp levé,
+`newuidmap` reste refusé, buildah retombe sur un mapping à un seul UID, et le
+simple pull de `debian:bookworm-slim` casse sur `/etc/gshadow`. Or root rend le
+garde-fou atteignable, puisque `/etc/claude-guard/enabled` est en 0444 root.
+Construire en local et confiner l'agent s'excluent.
+
+D'où l'orientation : **le container rédige et vérifie statiquement, la CI
+construit et déploie.** `terraform fmt`, `validate` et un linter de Dockerfile
+fonctionnent sans credential ; `apply` et `docker build` n'ont pas leur place
+ici.
+
 ## Ce que le garde-fou ne protège pas
 
 Un garde-fou dont on ignore les limites donne une confiance qu'il ne mérite pas.
