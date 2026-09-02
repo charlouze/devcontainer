@@ -99,8 +99,11 @@ si tu en violes un, la faute se verra plus tard et coûtera plus cher.
   `/usr/local/share/devcontainer/post-create.sh`. Le script est fourni par
   l'image : un chemin dans le workspace serait éditable par l'agent.
 - `runargs-securite` — `--security-opt no-new-privileges` et `--cap-drop ALL`
-  sont présents, et les seules capabilities rendues sont `CHOWN`, `FOWNER`,
-  `DAC_OVERRIDE`, `SETUID`, `SETGID`.
+  sont présents, les seules capabilities rendues sont `CHOWN`, `FOWNER`,
+  `DAC_OVERRIDE`, `SETUID`, `SETGID`, et `--security-opt` ne porte aucune autre
+  valeur que `no-new-privileges`. En particulier jamais `seccomp=unconfined` :
+  c'est l'option qui autorise la création d'un user namespace, donc la seule qui
+  rapproche d'un chemin d'évasion.
 - `runargs-parser` — `runArgs` ne contient rien d'autre que `--security-opt`,
   `--cap-drop` et `--cap-add`. Le parser d'IntelliJ ne connaît qu'un
   sous-ensemble des options `docker run` et échoue sur les autres. Les plafonds
