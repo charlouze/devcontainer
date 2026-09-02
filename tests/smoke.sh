@@ -104,6 +104,14 @@ section "Utilisateur et toolchain"
 check  "l'utilisateur par défaut est dev"        test "$(in_base 'id -un')" = dev
 check  "dev n'est pas root"                      test "$(in_base 'id -u')" != 0
 refute "sudo est neutralisé"                     in_base 'sudo -n true'
+# usermod --login ne suit ni /etc/subuid ni /etc/subgid, qui portaient encore
+# `vscode`. Ils sont vidés dans l'image : une plage subuid n'a aucun usage dans
+# un container qui ne doit jamais créer de user namespace. L'assertion existe
+# pour qu'une mise à jour de l'image de base ne les réintroduise pas en silence.
+# `-f` puis `! -s` et non `! -s` seul : ce dernier est vrai aussi pour un
+# fichier absent, et l'absence n'est pas ce qu'on veut vérifier.
+check  "/etc/subuid existe et est vide"          in_base 'test -f /etc/subuid && test ! -s /etc/subuid'
+check  "/etc/subgid existe et est vide"          in_base 'test -f /etc/subgid && test ! -s /etc/subgid'
 check  "mise est sur le PATH"                    in_base 'command -v mise'
 check  "claude est sur le PATH"                  in_base 'command -v claude'
 check  "gh est sur le PATH"                      in_base 'command -v gh'

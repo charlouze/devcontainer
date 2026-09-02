@@ -11,6 +11,14 @@ RUN usermod --login ${USERNAME} --home /home/${USERNAME} --move-home vscode \
  && mv /etc/sudoers.d/vscode /etc/sudoers.d/${USERNAME} \
  && sed -i "s/\bvscode\b/${USERNAME}/g" /etc/sudoers.d/${USERNAME}
 
+# usermod --login ne suit ni /etc/subuid ni /etc/subgid : ils portaient encore
+# `vscode`. On les vide plutôt que de les renommer — une plage subuid n'a aucun
+# usage dans un container qui ne doit jamais créer de user namespace, et un
+# fichier vide est un verrou de plus là où un fichier renommé n'aurait été
+# qu'une cohérence de nom. Vider et non supprimer : certains outils distinguent
+# mal le fichier absent du fichier vide.
+RUN : > /etc/subuid && : > /etc/subgid
+
 # nodejs du dépôt Debian : il sert UNIQUEMENT d'interprète au garde-fou. C'est
 # ce qui permet à mise de redescendre en user-level sans que l'agent puisse
 # remplacer l'interpréteur qui exécute le garde-fou.
