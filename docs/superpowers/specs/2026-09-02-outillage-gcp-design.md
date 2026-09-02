@@ -28,6 +28,8 @@ Dans le périmètre :
 - un invariant fermant la liste des valeurs acceptées pour `--security-opt` ;
 - la mise en cohérence de `/etc/subuid` et `/etc/subgid` ;
 - une section de README consignant ce que le container ne sait pas faire ;
+- le même rappel dans la skill d'onboarding, seul endroit lu par qui branche un
+  projet ;
 - la publication d'une version 1.6.0.
 
 Hors périmètre :
@@ -199,11 +201,35 @@ débloque, et perdra la même journée.
 Y mentionner aussi l'orientation qui en découle : le container rédige et vérifie
 statiquement, la CI construit et déploie.
 
-### 5.5 Version 1.6.0
+### 5.5 Rappel dans la skill d'onboarding
 
-Les points 5.1 et 5.3 touchent l'image, donc la version bouge. `marketplace.json`
-et `plugin/.claude-plugin/plugin.json` portent la même valeur —
-`tests/unit/plugin-manifests.test.cjs` l'impose. Le tag du
+Le README de §5.4 est lu par qui travaille sur ce dépôt-ci. Il ne l'est pas par
+qui branche un projet : cette personne lit la skill. Or sur un dépôt dont le
+cœur est d'héberger des serveurs de jeu, la première chose sur laquelle elle
+butera est un `docker build` qui ne marche pas.
+
+`plugin/skills/onboard-devcontainer/SKILL.md` se termine par un paragraphe qui
+rappelle ce que le garde-fou **ne** protège **pas**. C'est le bon endroit et le
+bon moment : y ajouter que le container ne construit pas d'image OCI, que la
+raison est le profil seccomp par défaut de Docker et non le durcissement, et que
+la construction comme le déploiement se font en CI.
+
+`references/amorcer.md` §4 le répète, brièvement. Redondant en apparence, mais
+« amorcer » est le mode des projets qui naissent, donc celui que lit quelqu'un
+qui ne connaît pas encore le dispositif — et celui où la question du build se
+pose le plus tôt. C'est déjà la logique de la section, qui redit là l'avertissement
+sur le volume Docker « plus aigu ici que dans les autres modes ».
+
+Aucun test ne couvre ce paragraphe de clôture : `tests/unit/skill-checklist.test.cjs`
+ne tient que la liste de contrôle et les renvois par mode. C'est donc, avec le
+README, le second livrable à relire à l'œil.
+
+### 5.6 Version 1.6.0
+
+Les points 5.1 et 5.3 touchent l'image, 5.2 et 5.5 touchent le plugin : la
+version bouge des deux côtés à la fois, ce qui est le cas normal ici puisqu'elle
+est commune. `marketplace.json` et `plugin/.claude-plugin/plugin.json` portent la
+même valeur — `tests/unit/plugin-manifests.test.cjs` l'impose. Le tag du
 `devcontainer.template.json` reste `:1`, la majeure ne changeant pas.
 
 ## 6. Ce qui revient au projet consommateur
@@ -244,6 +270,16 @@ maintenant qu'on le sait :
 - Cible retenue : Compute Engine, une VM par serveur. Ni Cloud Run, qui ne fait
   pas d'UDP ni d'état persistant, ni GKE + Agones, dont le coût fixe et la
   complexité ne se justifient pas à cette échelle.
+- La skill d'onboarding couvre ce dépôt sans modification : vide, il tombe dans
+  le mode « amorcer », cas nominal, que le préambule de `references/amorcer.md`
+  décrit comme « un répertoire réellement vide, destiné à Nx + Firebase ». Le
+  déroulé
+  s'applique tel quel — container d'abord, puis `pnpm create nx-workspace` et
+  `firebase init` dedans, puis relance en mode « mettre à jour ». Deux points à
+  ne pas corriger au passage : l'identifiant reste `demo-<slug>` et non le vrai
+  projet GCP, parce que c'est ce préfixe qui interdit au SDK d'atteindre un
+  backend réel ; et Terraform reste absent de ce que la skill écrit, la §6
+  ci-dessus étant à saisir à la main.
 
 ## 8. Vérification
 
@@ -251,5 +287,5 @@ maintenant qu'on le sait :
   liste de contrôle, y compris ceux ajoutés en 5.1 et 5.2.
 - `mise run check` — la séquence complète de la CI, build des deux images
   compris, puis `tests/smoke.sh` avec l'assertion de 5.3.
-- Relecture manuelle de la section de README de 5.4 : c'est le seul livrable que
-  rien ne vérifie mécaniquement.
+- Relecture manuelle des deux livrables que rien ne vérifie mécaniquement : la
+  section de README de 5.4 et le rappel de 5.5 dans la skill.
